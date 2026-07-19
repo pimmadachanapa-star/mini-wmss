@@ -1,0 +1,2241 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockGrid — ห้องควบคุมคลังสินค้า</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  :root{
+    --navy-deep:#0A1728;
+    --navy-panel:#122A45;
+    --navy-panel-2:#16324F;
+    --line:#24405E;
+    --cyan:#3FA9F5;
+    --cyan-dim:#1E4E70;
+    --amber:#F0A93C;
+    --green:#3FCB8B;
+    --purple:#9C7BE0;
+    --text-hi:#EAF2FA;
+    --text-mid:#9FB3C8;
+    --text-dim:#6B7F96;
+    --danger:#E5636B;
+    --radius:10px;
+    --mono:'JetBrains Mono', monospace;
+    --display:'Space Grotesk', sans-serif;
+    --body:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, #12314f 0%, transparent 45%),
+      radial-gradient(circle at 100% 100%, #0f2438 0%, transparent 50%),
+      var(--navy-deep);
+    color:var(--text-hi);
+    font-family:var(--body);
+    min-height:100vh;
+  }
+  ::selection{ background:var(--cyan-dim); }
+
+  .shell{ display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+  @media (max-width:860px){
+    .shell{ grid-template-columns:1fr; }
+    .sidebar{ display:none; }
+    .mobile-nav{ display:flex !important; }
+  }
+
+  .sidebar{
+    background:linear-gradient(180deg, var(--navy-panel), #0C2036);
+    border-right:1px solid var(--line);
+    padding:28px 20px; display:flex; flex-direction:column; gap:28px;
+  }
+  .brand{ display:flex; flex-direction:column; gap:2px; }
+  .brand .mark{ font-family:var(--display); font-weight:700; font-size:20px; letter-spacing:.3px; }
+  .brand .mark span{ color:var(--cyan); }
+  .brand .sub{ font-family:var(--mono); font-size:11px; color:var(--text-dim); letter-spacing:.5px; text-transform:uppercase; }
+  .nav{ display:flex; flex-direction:column; gap:4px; }
+  .nav button{
+    all:unset; cursor:pointer; display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:8px; font-size:14px; color:var(--text-mid);
+    transition:background .15s, color .15s;
+  }
+  .nav button .n{ font-family:var(--mono); font-size:11px; color:var(--text-dim); width:18px; }
+  .nav button:hover{ background:#173252; color:var(--text-hi); }
+  .nav button.active{ background:var(--cyan-dim); color:var(--text-hi); }
+  .nav button.active .n{ color:var(--cyan); }
+  .sidebar-foot{
+    margin-top:auto; font-family:var(--mono); font-size:11px; color:var(--text-dim);
+    line-height:1.6; padding-top:16px; border-top:1px solid var(--line);
+  }
+  .mobile-nav{ display:none; gap:6px; overflow-x:auto; padding:14px 16px; background:var(--navy-panel); border-bottom:1px solid var(--line); }
+  .mobile-nav button{ all:unset; cursor:pointer; white-space:nowrap; font-size:13px; padding:8px 12px; border-radius:20px; color:var(--text-mid); background:#173252; }
+  .mobile-nav button.active{ background:var(--cyan); color:#04121F; font-weight:600; }
+
+  main{ padding:32px 36px 60px; max-width:1220px; }
+  @media (max-width:600px){ main{ padding:20px 16px 40px; } }
+
+  .page-head{ margin-bottom:26px; }
+  .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan); margin:0 0 6px; }
+  h1{ font-family:var(--display); font-size:28px; margin:0 0 6px; font-weight:600; }
+  .page-desc{ color:var(--text-mid); font-size:14px; margin:0; max-width:64ch; }
+
+  .grid{ display:grid; gap:18px; }
+  .cols-2{ grid-template-columns:1fr 1fr; }
+  .cols-3{ grid-template-columns:repeat(3,1fr); }
+  .cols-4{ grid-template-columns:repeat(4,1fr); }
+  @media (max-width:860px){ .cols-2, .cols-3, .cols-4{ grid-template-columns:1fr; } }
+
+  .card{
+    background:linear-gradient(180deg, var(--navy-panel-2), var(--navy-panel));
+    border:1px solid var(--line); border-radius:var(--radius); padding:20px;
+  }
+  .card h2{ font-family:var(--display); font-size:15px; margin:0 0 14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .card h2 .dot{ width:6px; height:6px; border-radius:50%; background:var(--cyan); }
+
+  .stat{ display:flex; flex-direction:column; gap:6px; }
+  .stat .value{ font-family:var(--display); font-size:30px; font-weight:700; }
+  .stat .label{ font-size:12px; color:var(--text-mid); }
+  .stat .value.amber{ color:var(--amber); }
+  .stat .value.green{ color:var(--green); }
+  .stat .value.cyan{ color:var(--cyan); }
+  .stat .value.purple{ color:var(--purple); }
+
+  label{ display:block; font-size:12px; color:var(--text-mid); margin:0 0 6px; }
+  input, select, textarea{
+    width:100%; background:#0C2036; border:1px solid var(--line); color:var(--text-hi);
+    padding:10px 12px; border-radius:8px; font-family:var(--body); font-size:14px; margin-bottom:14px;
+  }
+  input:focus, select:focus, textarea:focus, button:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }
+  input.mono{ font-family:var(--mono); }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field-row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  @media (max-width:600px){ .field-row3{ grid-template-columns:1fr; } }
+
+  .btn{
+    all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    background:var(--cyan); color:#04121F; font-weight:600; font-size:14px;
+    padding:11px 18px; border-radius:8px; transition:filter .15s, transform .1s;
+  }
+  .btn:hover{ filter:brightness(1.08); }
+  .btn:active{ transform:scale(.98); }
+  .btn.ghost{ background:transparent; border:1px solid var(--line); color:var(--text-mid); }
+  .btn.ghost:hover{ border-color:var(--cyan); color:var(--text-hi); }
+  .btn.small{ padding:7px 12px; font-size:12px; }
+  .btn.warn{ background:var(--amber); }
+  .btn.go{ background:var(--green); }
+
+  .msg{ font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:14px; display:none; }
+  .msg.show{ display:block; }
+  .msg.ok{ background:rgba(63,203,139,.12); border:1px solid rgba(63,203,139,.4); color:var(--green); }
+  .msg.err{ background:rgba(229,99,107,.12); border:1px solid rgba(229,99,107,.4); color:var(--danger); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{
+    text-align:left; font-family:var(--mono); font-size:11px; letter-spacing:.5px; text-transform:uppercase;
+    color:var(--text-dim); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--line);
+  }
+  td{ padding:10px 10px; border-bottom:1px solid #1a3450; color:#FFFFFF; font-weight:500; vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  tbody tr:hover td{ background:rgba(63,169,245,0.05); }
+  .empty-row td{ color:var(--text-dim); text-align:center; padding:24px; }
+  .m{ font-family:var(--mono); }
+  .tbl-wrap{ overflow-x:auto; }
+
+  .tag{ display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+  .tag.in{ background:rgba(63,203,139,.14); color:var(--green); }
+  .tag.out{ background:rgba(229,99,107,.14); color:var(--danger); }
+  .tag.ret{ background:rgba(156,123,224,.16); color:var(--purple); }
+  .tag.low{ background:rgba(240,169,60,.16); color:var(--amber); }
+  .tag.ok{ background:rgba(63,169,245,.12); color:var(--cyan); }
+  .tag.pending{ background:rgba(240,169,60,.16); color:var(--amber); }
+  .tag.picked{ background:rgba(63,169,245,.14); color:var(--cyan); }
+  .tag.shipped{ background:rgba(63,203,139,.14); color:var(--green); }
+
+  .prod-cell{ display:flex; align-items:center; gap:10px; }
+  .thumb{
+    width:32px; height:32px; border-radius:7px; flex:none;
+    background:var(--navy-deep); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:10px; font-weight:600; color:var(--cyan);
+    overflow:hidden;
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover; }
+
+  .rack{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; }
+  @media (max-width:600px){ .rack{ grid-template-columns:repeat(4,1fr); } }
+  .cell{
+    aspect-ratio:1; border-radius:6px; border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:10px; gap:2px; background:#0C2036; color:var(--text-dim);
+    transition:background .3s, border-color .3s;
+  }
+  .cell .code{ font-weight:600; }
+  .cell.full{ background:rgba(63,169,245,.16); border-color:rgba(63,169,245,.5); color:var(--cyan); }
+  .cell.full::before{ content:'●'; font-size:8px; }
+  .legend{ display:flex; gap:18px; margin-top:14px; font-size:12px; color:var(--text-mid); }
+  .legend .sw{ display:inline-flex; align-items:center; gap:6px; }
+  .legend .box{ width:10px; height:10px; border-radius:3px; }
+  .legend .box.empty{ background:#0C2036; border:1px solid var(--line); }
+  .legend .box.full{ background:rgba(63,169,245,.4); border:1px solid var(--cyan); }
+
+  .section-hide{ display:none; }
+  .foot-note{ margin-top:30px; font-size:12px; color:var(--text-dim); line-height:1.6; border-top:1px solid var(--line); padding-top:16px; }
+
+  /* order item builder */
+  .item-row{ display:grid; grid-template-columns:2fr 1fr auto; gap:10px; align-items:end; margin-bottom:10px; }
+  .item-row select, .item-row input{ margin-bottom:0; }
+  .icon-btn{
+    all:unset; cursor:pointer; width:38px; height:38px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(229,99,107,.12); color:var(--danger); font-size:16px; font-weight:700;
+  }
+  .icon-btn:hover{ background:rgba(229,99,107,.2); }
+  .add-item-btn{ all:unset; cursor:pointer; font-size:13px; color:var(--cyan); padding:6px 0; display:inline-block; margin-bottom:14px; }
+  .add-item-btn:hover{ text-decoration:underline; }
+
+  .chart-box{ position:relative; height:230px; }
+  .order-items-list{ font-size:12px; color:var(--text-mid); line-height:1.6; }
+
+  /* Print documents */
+  #printArea{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #printArea, #printArea *{ visibility:visible; }
+    #printArea{ display:block; position:absolute; top:0; left:0; width:100%; padding:20px; color:#000; background:#fff; }
+    #printArea table{ width:100%; border-collapse:collapse; }
+    #printArea th, #printArea td{ border:1px solid #999; padding:6px 8px; color:#000; font-size:12px; }
+    #printArea h2{ font-family:sans-serif; }
+  }
+  .doc-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; border-bottom:2px solid #000; padding-bottom:10px; }
+  .doc-sign{ display:flex; justify-content:space-between; margin-top:60px; }
+  .doc-sign div{ text-align:center; width:180px; border-top:1px solid #000; padding-top:6px; font-size:12px; }
+</style>
+</head>
+<body>
+
+<div id="loginOverlay" style="position:fixed; inset:0; z-index:999; background:radial-gradient(circle at 15% 0%, #12314f 0%, transparent 45%), radial-gradient(circle at 100% 100%, #0f2438 0%, transparent 50%), #0A1728; display:flex; align-items:center; justify-content:center; padding:20px;">
+  <div style="width:100%; max-width:380px; background:linear-gradient(180deg, #16324F, #122A45); border:1px solid #24405E; border-radius:12px; padding:32px;">
+    <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px; color:#EAF2FA; margin-bottom:4px;">Stock<span style="color:#3FA9F5;">Grid</span></div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#6B7F96; letter-spacing:.5px; text-transform:uppercase; margin-bottom:24px;">เข้าสู่ระบบห้องควบคุมคลังสินค้า</div>
+    <div class="msg" id="msgLogin" style="font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:14px; display:none;"></div>
+    <form id="formLogin">
+      <label style="display:block; font-size:12px; color:#9FB3C8; margin:0 0 6px;">ชื่อผู้ใช้งาน</label>
+      <input id="loginUser" style="width:100%; background:#0C2036; border:1px solid #24405E; color:#EAF2FA; padding:10px 12px; border-radius:8px; font-size:14px; margin-bottom:14px; box-sizing:border-box;" placeholder="admin หรือ staff" required>
+      <label style="display:block; font-size:12px; color:#9FB3C8; margin:0 0 6px;">รหัสผ่าน</label>
+      <input id="loginPass" type="password" style="width:100%; background:#0C2036; border:1px solid #24405E; color:#EAF2FA; padding:10px 12px; border-radius:8px; font-size:14px; margin-bottom:18px; box-sizing:border-box;" required>
+      <button class="btn" type="submit" style="width:100%; justify-content:center;">เข้าสู่ระบบ →</button>
+    </form>
+    <div style="margin-top:18px; font-size:11px; color:#6B7F96; line-height:1.7; font-family:'JetBrains Mono',monospace;">
+      บัญชีทดลองใช้:<br>
+      ผู้ดูแล: admin / admin123<br>
+      พนักงาน: staff / staff123
+    </div>
+  </div>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">Stock<span>Grid</span></div>
+      <div class="sub">Warehouse Control Room</div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-page="dashboard" class="active"><span class="n">01</span> ภาพรวมคลัง</button>
+      <button data-page="receiving"><span class="n">02</span> รับสินค้าเข้า</button>
+      <button data-page="inventory"><span class="n">03</span> คลังสินค้า</button>
+      <button data-page="orders"><span class="n">04</span> คำสั่งซื้อ &amp; จัดส่ง</button>
+      <button data-page="returns"><span class="n">05</span> รับคืนสินค้า</button>
+      <button data-page="locations"><span class="n">06</span> ตำแหน่งจัดเก็บ</button>
+      <button data-page="reports"><span class="n">07</span> รายงาน &amp; KPI</button>
+      <button data-page="alerts"><span class="n">08</span> แจ้งเตือนอีเมล</button>
+      <button data-page="suppliers"><span class="n">09</span> ซัพพลายเออร์</button>
+      <button data-page="customers"><span class="n">10</span> ลูกค้า/ผู้จำหน่าย</button>
+      <button data-page="maintenance"><span class="n">11</span> ซ่อมบำรุงคลัง</button>
+      <button data-page="schedule"><span class="n">12</span> ตารางกะพนักงาน</button>
+    </nav>
+    <div id="userBox" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:#0C2036; border:1px solid var(--line); border-radius:8px; font-size:12px; color:var(--text-mid);">
+      <span id="currentUserLabel">—</span>
+      <button id="btnLogout" style="all:unset; cursor:pointer; color:var(--danger); font-size:12px;">ออกจากระบบ</button>
+    </div>
+    <div class="sidebar-foot">
+      StockGrid · Mini-WMS<br>
+      Powering SmartStock Logistics Co., Ltd.<br>
+      Phase 0–5 · Receiving · Orders · Alerts
+    </div>
+  </aside>
+
+  <div>
+    <div class="mobile-nav" id="mobileNav">
+      <button data-page="dashboard" class="active">ภาพรวม</button>
+      <button data-page="receiving">รับสินค้า</button>
+      <button data-page="inventory">คลังสินค้า</button>
+      <button data-page="orders">คำสั่งซื้อ</button>
+      <button data-page="returns">คืนสินค้า</button>
+      <button data-page="locations">ตำแหน่ง</button>
+      <button data-page="reports">รายงาน</button>
+      <button data-page="alerts">แจ้งเตือน</button>
+      <button data-page="suppliers">ซัพพลายเออร์</button>
+      <button data-page="customers">ลูกค้า</button>
+      <button data-page="maintenance">ซ่อมบำรุง</button>
+      <button data-page="schedule">ตารางกะ</button>
+    </div>
+
+    <main>
+
+      <!-- ========== DASHBOARD ========== -->
+      <section id="page-dashboard">
+        <div class="page-head">
+          <p class="eyebrow">System status</p>
+          <h1>ภาพรวมคลังสินค้า</h1>
+          <p class="page-desc">สรุปสถานะการรับสินค้า คำสั่งซื้อ และการใช้พื้นที่จัดเก็บแบบเรียลไทม์</p>
+        </div>
+
+        <div class="grid cols-4" style="margin-bottom:18px;">
+          <div class="card stat">
+            <div class="value cyan" id="statProducts">0</div>
+            <div class="label">รายการสินค้าทั้งหมด (SKU)</div>
+          </div>
+          <div class="card stat">
+            <div class="value green" id="statUsage">0%</div>
+            <div class="label">การใช้พื้นที่จัดเก็บ</div>
+          </div>
+          <div class="card stat">
+            <div class="value amber" id="statLow">0</div>
+            <div class="label">สินค้าต่ำกว่าจุดสั่งซื้อ</div>
+          </div>
+          <div class="card stat">
+            <div class="value purple" id="statPendingOrders">0</div>
+            <div class="label">คำสั่งซื้อรอดำเนินการ</div>
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <h2><span class="dot"></span>รายการเคลื่อนไหวล่าสุด</h2>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>เวลา</th><th>สินค้า</th><th>ประเภท</th><th>จำนวน</th></tr></thead>
+                <tbody id="txTableDash"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h2><span class="dot"></span>สินค้าที่ต้องเฝ้าระวัง</h2>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>SKU</th><th>ชื่อสินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr></thead>
+                <tbody id="lowStockTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== RECEIVING ========== -->
+      <section id="page-receiving" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 01 · Receiving</p>
+          <h1>รับสินค้าเข้าคลัง</h1>
+          <p class="page-desc">เพิ่มสินค้าใหม่พร้อมรายละเอียด แล้วบันทึกรับเข้าคลัง ระบบจะเลือกตำแหน่งจัดเก็บว่างให้อัตโนมัติ</p>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card" id="addProductCard">
+            <h2><span class="dot"></span>เพิ่มสินค้าใหม่เข้าระบบ</h2>
+            <div class="msg" id="msgProduct"></div>
+            <form id="formProduct">
+              <div class="field-row">
+                <div>
+                  <label for="pSku">รหัสสินค้า (SKU)</label>
+                  <input class="mono" id="pSku" placeholder="เช่น SKU-1001" required>
+                </div>
+                <div>
+                  <label for="pName">ชื่อสินค้า</label>
+                  <input id="pName" placeholder="เช่น กล่องกระดาษ A4" required>
+                </div>
+              </div>
+              <div class="field-row3">
+                <div>
+                  <label for="pCategory">หมวดหมู่</label>
+                  <select id="pCategory">
+                    <option value="บรรจุภัณฑ์">บรรจุภัณฑ์</option>
+                    <option value="อุปกรณ์คลังสินค้า">อุปกรณ์คลังสินค้า</option>
+                    <option value="วัสดุสิ้นเปลือง">วัสดุสิ้นเปลือง</option>
+                    <option value="อิเล็กทรอนิกส์">อิเล็กทรอนิกส์</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="pUnit">หน่วยนับ</label>
+                  <input id="pUnit" placeholder="เช่น กล่อง" required>
+                </div>
+                <div>
+                  <label for="pReorder">จุดสั่งซื้อขั้นต่ำ</label>
+                  <input id="pReorder" type="number" min="0" value="10" required>
+                </div>
+              </div>
+              <div class="field-row">
+                <div>
+                  <label for="pSupplier">ซัพพลายเออร์</label>
+                  <select id="pSupplier"><option value="">— ไม่ระบุ / เพิ่มที่หน้าซัพพลายเออร์ —</option></select>
+                </div>
+                <div>
+                  <label for="pPrice">ราคาต่อหน่วย (บาท)</label>
+                  <input id="pPrice" type="number" min="0" step="0.01" placeholder="เช่น 25.00" required>
+                </div>
+              </div>
+              <label for="pImage">ลิงก์รูปภาพสินค้า (ไม่บังคับ)</label>
+              <input id="pImage" placeholder="https://... (เว้นว่างได้)">
+              <button class="btn" type="submit">+ เพิ่มสินค้า</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2><span class="dot"></span>บันทึกรับสินค้าเข้าคลัง</h2>
+            <div class="msg" id="msgReceive"></div>
+            <form id="formReceive">
+              <label for="rProduct">เลือกสินค้า</label>
+              <select id="rProduct" required></select>
+              <div class="field-row">
+                <div>
+                  <label for="rQty">จำนวนที่รับเข้า</label>
+                  <input id="rQty" type="number" min="1" value="1" required>
+                </div>
+                <div>
+                  <label for="rDoc">เลขที่เอกสารอ้างอิง</label>
+                  <input class="mono" id="rDoc" placeholder="เช่น RCV-0001">
+                </div>
+              </div>
+              <button class="btn" type="submit">รับสินค้าเข้าคลัง →</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>ประวัติการรับสินค้า</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>เวลา</th><th>สินค้า</th><th>จำนวน</th><th>ตำแหน่งจัดเก็บ</th><th>เอกสารอ้างอิง</th><th>ดำเนินการ</th></tr></thead>
+              <tbody id="receivingLog"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== INVENTORY ========== -->
+      <section id="page-inventory" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 01 · Inventory</p>
+          <h1>คลังสินค้าคงเหลือ</h1>
+          <p class="page-desc">ยอดคงเหลือ ราคา หมวดหมู่ และซัพพลายเออร์ของสินค้าแต่ละรายการ</p>
+        </div>
+        <div class="card">
+          <h2><span class="dot"></span>ค้นหาสินค้า</h2>
+          <input id="invSearch" placeholder="ค้นหาด้วย SKU, ชื่อสินค้า หรือหมวดหมู่..." style="margin-bottom:10px;">
+          <button class="btn ghost small" type="button" id="btnExportInventory" style="margin-bottom:14px;">⬇ Export คลังสินค้า (CSV)</button>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>สินค้า</th><th>หมวดหมู่</th><th>ตำแหน่ง</th><th>คงเหลือ</th><th>ราคา/หน่วย</th><th>มูลค่ารวม</th><th>ซัพพลายเออร์</th><th>สถานะ</th></tr></thead>
+              <tbody id="invTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== ORDERS ========== -->
+      <section id="page-orders" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 02 · Orders &amp; Picking</p>
+          <h1>คำสั่งซื้อและการจัดส่ง</h1>
+          <p class="page-desc">สร้างคำสั่งซื้อ ตรวจสอบสต็อกก่อนตัดจริง แล้วดำเนินการจัดเตรียมและจัดส่ง</p>
+        </div>
+
+        <div class="card">
+          <h2><span class="dot"></span>สร้างคำสั่งซื้อใหม่</h2>
+          <div class="msg" id="msgOrder"></div>
+          <form id="formOrder">
+            <label for="oNo">เลขที่คำสั่งซื้อ</label>
+            <input class="mono" id="oNo" placeholder="เช่น SO-0001" required>
+            <label for="oCustomer">ลูกค้า/ตัวแทนจำหน่าย</label>
+            <select id="oCustomer"><option value="">— ไม่ระบุ / เพิ่มที่หน้าลูกค้า —</option></select>
+
+            <div id="orderItems"></div>
+            <button type="button" class="add-item-btn" id="addItemBtn">+ เพิ่มรายการสินค้า</button>
+            <br>
+            <button class="btn" type="submit">สร้างคำสั่งซื้อ →</button>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>รายการคำสั่งซื้อทั้งหมด</h2>
+          <button class="btn ghost small" type="button" id="btnExportOrders" style="margin-bottom:14px;">⬇ Export คำสั่งซื้อ (CSV)</button>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>เลขที่คำสั่งซื้อ</th><th>ลูกค้า</th><th>รายการสินค้า</th><th>มูลค่ารวม</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead>
+              <tbody id="ordersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== RETURNS ========== -->
+      <section id="page-returns" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 04 · Returns</p>
+          <h1>รับคืนสินค้า</h1>
+          <p class="page-desc">บันทึกสินค้าที่ถูกส่งคืนกลับเข้าคลัง พร้อมเหตุผลการคืน</p>
+        </div>
+        <div class="card">
+          <h2><span class="dot"></span>บันทึกการคืนสินค้า</h2>
+          <div class="msg" id="msgReturn"></div>
+          <form id="formReturn">
+            <label for="rtProduct">เลือกสินค้า</label>
+            <select id="rtProduct" required></select>
+            <div class="field-row">
+              <div>
+                <label for="rtQty">จำนวนที่คืน</label>
+                <input id="rtQty" type="number" min="1" value="1" required>
+              </div>
+              <div>
+                <label for="rtReason">เหตุผลการคืน</label>
+                <select id="rtReason">
+                  <option value="สินค้าชำรุด">สินค้าชำรุด</option>
+                  <option value="ส่งผิดรายการ">ส่งผิดรายการ</option>
+                  <option value="ลูกค้าเปลี่ยนใจ">ลูกค้าเปลี่ยนใจ</option>
+                  <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn warn" type="submit">บันทึกรับคืนเข้าคลัง</button>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>ประวัติการรับคืน</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>เวลา</th><th>สินค้า</th><th>จำนวน</th><th>เหตุผล</th><th>ตำแหน่งจัดเก็บ</th></tr></thead>
+              <tbody id="returnsLog"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== LOCATIONS ========== -->
+      <section id="page-locations" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 01 · Put-away</p>
+          <h1>ผังตำแหน่งจัดเก็บ</h1>
+          <p class="page-desc">ตำแหน่งจัดเก็บทั้งหมดในคลัง จุดสว่างหมายถึงตำแหน่งที่มีสินค้าอยู่แล้ว</p>
+        </div>
+        <div class="card">
+          <h2><span class="dot"></span>ผังคลัง (Rack Map)</h2>
+          <div class="rack" id="rackGrid"></div>
+          <div class="legend">
+            <span class="sw"><span class="box empty"></span> ว่าง</span>
+            <span class="sw"><span class="box full"></span> มีสินค้าจัดเก็บอยู่</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== REPORTS ========== -->
+      <section id="page-reports" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 03 · Analytics</p>
+          <h1>รายงานและตัวชี้วัด (KPI)</h1>
+          <p class="page-desc">สรุปมูลค่าคงคลัง ยอดขาย และประสิทธิภาพการดำเนินงานของคลังสินค้า</p>
+        </div>
+
+        <div class="grid cols-4" style="margin-bottom:18px;">
+          <div class="card stat">
+            <div class="value cyan" id="kpiInvValue">฿0</div>
+            <div class="label">มูลค่าสินค้าคงคลังรวม</div>
+          </div>
+          <div class="card stat">
+            <div class="value green" id="kpiRevenue">฿0</div>
+            <div class="label">มูลค่าคำสั่งซื้อที่จัดส่งแล้ว</div>
+          </div>
+          <div class="card stat">
+            <div class="value amber" id="kpiFulfill">0%</div>
+            <div class="label">อัตราการจัดส่งสำเร็จ</div>
+          </div>
+          <div class="card stat">
+            <div class="value purple" id="kpiAvgOrder">฿0</div>
+            <div class="label">มูลค่าเฉลี่ยต่อคำสั่งซื้อ</div>
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <h2><span class="dot"></span>คำสั่งซื้อแยกตามสถานะ</h2>
+            <div class="chart-box"><canvas id="chartOrders"></canvas></div>
+          </div>
+          <div class="card">
+            <h2><span class="dot"></span>มูลค่าคงคลังแยกตามหมวดหมู่</h2>
+            <div class="chart-box"><canvas id="chartCategory"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>จำนวนรายการเคลื่อนไหวแยกตามประเภท</h2>
+          <div class="chart-box"><canvas id="chartTx"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ========== ALERTS / EMAIL ========== -->
+      <section id="page-alerts" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 05 · Notifications</p>
+          <h1>แจ้งเตือนอีเมลผู้ดูแลคลังสินค้า</h1>
+          <p class="page-desc">ตั้งค่าการส่งอีเมลผ่านบริการ EmailJS เพื่อแจ้งเตือนสต็อกต่ำกว่ากำหนด และส่งรายงานสรุปประจำวัน/สัปดาห์</p>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <h2><span class="dot"></span>ตั้งค่าการเชื่อมต่อ EmailJS</h2>
+            <div class="msg" id="msgEmailSetup"></div>
+            <form id="formEmailSetup">
+              <label for="ejPublicKey">Public Key</label>
+              <input class="mono" id="ejPublicKey" placeholder="เช่น a1B2c3D4e5F6g7H8">
+              <div class="field-row">
+                <div>
+                  <label for="ejServiceId">Service ID</label>
+                  <input class="mono" id="ejServiceId" placeholder="เช่น service_xxxx">
+                </div>
+                <div>
+                  <label for="ejTemplateId">Template ID</label>
+                  <input class="mono" id="ejTemplateId" placeholder="เช่น template_xxxx">
+                </div>
+              </div>
+              <label for="ejToEmail">อีเมลผู้ดูแลคลังสินค้า (ผู้รับ)</label>
+              <input type="email" id="ejToEmail" placeholder="warehouse.manager@company.com" required>
+              <button class="btn" type="submit">บันทึกการตั้งค่า</button>
+              <button class="btn ghost" type="button" id="btnTestEmail" style="margin-left:8px;">ส่งอีเมลทดสอบ</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2><span class="dot"></span>กฎการแจ้งเตือนอัตโนมัติ</h2>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text-hi);margin-bottom:16px;">
+              <input type="checkbox" id="autoAlertToggle" style="width:auto;margin:0;">
+              เปิดแจ้งเตือนอัตโนมัติเมื่อสินค้าต่ำกว่าจุดสั่งซื้อ
+            </label>
+            <p class="page-desc" style="margin-bottom:16px;">ระบบจะตรวจสอบทุกครั้งหลังรับสินค้า/ตัดสต็อก และส่งอีเมลแจ้งเตือนเฉพาะครั้งแรกที่สินค้าตกต่ำกว่าจุดสั่งซื้อ (จะไม่ส่งซ้ำจนกว่าสต็อกจะกลับมาปกติก่อน)</p>
+            <div class="msg" id="msgAutoAlert"></div>
+
+            <h2 style="margin-top:22px;"><span class="dot"></span>รายงานสรุปส่งอีเมล</h2>
+            <p class="page-desc" style="margin-bottom:14px;">
+              เนื่องจากเว็บไซต์นี้เป็นไฟล์ static (host บน GitHub Pages) จึงไม่สามารถตั้งเวลาส่งอัตโนมัติทุกวันได้เองโดยไม่มีเซิร์ฟเวอร์ — ใช้ปุ่มด้านล่างเพื่อส่งสรุปด้วยตนเองได้ทันที
+            </p>
+            <button class="btn go" type="button" id="btnSendDaily">ส่งสรุปประจำวันตอนนี้</button>
+            <button class="btn ghost" type="button" id="btnSendWeekly" style="margin-left:8px;">ส่งสรุปประจำสัปดาห์ตอนนี้</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>ประวัติการแจ้งเตือนที่ส่งแล้ว</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>เวลา</th><th>ประเภท</th><th>หัวข้อ</th><th>สถานะ</th></tr></thead>
+              <tbody id="alertLogTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="foot-note">
+          วิธีสมัคร EmailJS (ฟรี): ไปที่ emailjs.com → สมัครสมาชิก → เพิ่ม Email Service (เชื่อม Gmail/Outlook) → สร้าง Email Template กำหนดตัวแปร <span class="m">{{to_email}}</span>, <span class="m">{{subject}}</span>, <span class="m">{{message}}</span> → คัดลอก Public Key, Service ID, Template ID มาใส่ในฟอร์มด้านบน
+        </div>
+
+        <div class="card" style="margin-top:18px; border-color:rgba(229,99,107,.3);">
+          <h2><span class="dot" style="background:var(--danger);"></span>ล้างข้อมูลทั้งหมด</h2>
+          <p class="page-desc" style="margin-bottom:14px;">ข้อมูลทั้งหมดของ StockGrid ถูกบันทึกไว้ในเบราว์เซอร์เครื่องนี้โดยอัตโนมัติ (localStorage) หากต้องการเริ่มต้นใหม่ทั้งหมด (ลบสินค้า คำสั่งซื้อ ประวัติ และการตั้งค่าทุกอย่าง) กดปุ่มด้านล่าง</p>
+          <button class="btn" type="button" id="btnResetData" style="background:var(--danger);color:#fff;">ล้างข้อมูลทั้งหมดและเริ่มต้นใหม่</button>
+        </div>
+      </section>
+
+      <!-- ========== SUPPLIERS ========== -->
+      <section id="page-suppliers" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 06 · Supplier Master Data</p>
+          <h1>จัดการซัพพลายเออร์</h1>
+          <p class="page-desc">เก็บข้อมูลติดต่อและเงื่อนไขการสั่งซื้อของซัพพลายเออร์แต่ละราย เพื่อใช้อ้างอิงตอนเพิ่มสินค้าใหม่</p>
+        </div>
+        <div class="card">
+          <h2><span class="dot"></span>เพิ่มซัพพลายเออร์ใหม่</h2>
+          <div class="msg" id="msgSupplier"></div>
+          <form id="formSupplier">
+            <label for="spName">ชื่อซัพพลายเออร์</label>
+            <input id="spName" placeholder="เช่น บจก. ไทยแพ็คเกจจิ้ง" required>
+            <div class="field-row">
+              <div>
+                <label for="spPhone">เบอร์โทรติดต่อ</label>
+                <input id="spPhone" placeholder="เช่น 02-123-4567">
+              </div>
+              <div>
+                <label for="spEmail">อีเมลติดต่อ</label>
+                <input type="email" id="spEmail" placeholder="contact@supplier.com">
+              </div>
+            </div>
+            <label for="spTerms">เงื่อนไขการสั่งซื้อ / หมายเหตุ</label>
+            <input id="spTerms" placeholder="เช่น เครดิต 30 วัน, ขั้นต่ำ 50 ลัง">
+            <button class="btn" type="submit">+ เพิ่มซัพพลายเออร์</button>
+          </form>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>รายชื่อซัพพลายเออร์</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ชื่อ</th><th>เบอร์โทร</th><th>อีเมล</th><th>เงื่อนไข</th><th>ดำเนินการ</th></tr></thead>
+              <tbody id="suppliersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== CUSTOMERS / DISTRIBUTORS ========== -->
+      <section id="page-customers" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 07 · Customer Master Data</p>
+          <h1>ลูกค้า / ตัวแทนจำหน่าย</h1>
+          <p class="page-desc">เก็บข้อมูลลูกค้าและตัวแทนจำหน่ายที่ซื้อสินค้าออกจากคลัง เพื่อผูกกับคำสั่งซื้อและใบส่งของ</p>
+        </div>
+        <div class="card">
+          <h2><span class="dot"></span>เพิ่มลูกค้า/ตัวแทนจำหน่ายใหม่</h2>
+          <div class="msg" id="msgCustomer"></div>
+          <form id="formCustomer">
+            <div class="field-row">
+              <div>
+                <label for="cuName">ชื่อลูกค้า/ตัวแทนจำหน่าย</label>
+                <input id="cuName" placeholder="เช่น ร้านเอบีซีค้าส่ง" required>
+              </div>
+              <div>
+                <label for="cuType">ประเภท</label>
+                <select id="cuType">
+                  <option value="ลูกค้าทั่วไป">ลูกค้าทั่วไป</option>
+                  <option value="ตัวแทนจำหน่าย">ตัวแทนจำหน่าย</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div>
+                <label for="cuPhone">เบอร์โทรติดต่อ</label>
+                <input id="cuPhone" placeholder="เช่น 08-1234-5678">
+              </div>
+              <div>
+                <label for="cuEmail">อีเมลติดต่อ</label>
+                <input type="email" id="cuEmail" placeholder="contact@customer.com">
+              </div>
+            </div>
+            <label for="cuAddress">ที่อยู่จัดส่ง</label>
+            <input id="cuAddress" placeholder="ที่อยู่สำหรับจัดส่งสินค้า">
+            <button class="btn" type="submit">+ เพิ่มลูกค้า/ตัวแทนจำหน่าย</button>
+          </form>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>รายชื่อลูกค้า/ตัวแทนจำหน่าย</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ชื่อ</th><th>ประเภท</th><th>เบอร์โทร</th><th>อีเมล</th><th>ที่อยู่</th><th>ดำเนินการ</th></tr></thead>
+              <tbody id="customersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== MAINTENANCE ========== -->
+      <section id="page-maintenance" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 08 · Facility Maintenance</p>
+          <h1>ซ่อมบำรุงรักษาคลังสินค้า</h1>
+          <p class="page-desc">ติดตามสถานะอุปกรณ์/ทรัพย์สินในคลัง กำหนดวันตรวจสอบ และบันทึกประวัติการซ่อมบำรุง</p>
+        </div>
+
+        <div class="grid cols-3" style="margin-bottom:18px;">
+          <div class="card stat">
+            <div class="value cyan" id="statAssets">0</div>
+            <div class="label">อุปกรณ์/ทรัพย์สินทั้งหมด</div>
+          </div>
+          <div class="card stat">
+            <div class="value amber" id="statDueSoon">0</div>
+            <div class="label">ใกล้ถึงกำหนดตรวจสอบ (≤7 วัน)</div>
+          </div>
+          <div class="card stat">
+            <div class="value" id="statOverdue" style="color:var(--danger);">0</div>
+            <div class="label">เกินกำหนดตรวจสอบแล้ว</div>
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <h2><span class="dot"></span>เพิ่มอุปกรณ์/ทรัพย์สินใหม่</h2>
+            <div class="msg" id="msgAsset"></div>
+            <form id="formAsset">
+              <label for="asName">ชื่ออุปกรณ์</label>
+              <input id="asName" placeholder="เช่น รถโฟล์คลิฟท์ #1" required>
+              <div class="field-row">
+                <div>
+                  <label for="asType">ประเภท</label>
+                  <select id="asType">
+                    <option value="รถยก/รถโฟล์คลิฟท์">รถยก/รถโฟล์คลิฟท์</option>
+                    <option value="ชั้นวางสินค้า (Rack)">ชั้นวางสินค้า (Rack)</option>
+                    <option value="เครื่องสแกน/อุปกรณ์ IT">เครื่องสแกน/อุปกรณ์ IT</option>
+                    <option value="ระบบไฟฟ้า/แสงสว่าง">ระบบไฟฟ้า/แสงสว่าง</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="asLocation">ตำแหน่งที่ติดตั้ง</label>
+                  <input id="asLocation" placeholder="เช่น โซน A หรือ ประตูรับสินค้า">
+                </div>
+              </div>
+              <label for="asNextDate">วันที่ครบกำหนดตรวจสอบครั้งถัดไป</label>
+              <input id="asNextDate" type="date" required>
+              <button class="btn" type="submit">+ เพิ่มอุปกรณ์</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2><span class="dot"></span>บันทึกการซ่อมบำรุง</h2>
+            <div class="msg" id="msgMaint"></div>
+            <form id="formMaint">
+              <label for="mtAsset">เลือกอุปกรณ์</label>
+              <select id="mtAsset" required></select>
+              <div class="field-row">
+                <div>
+                  <label for="mtType">ประเภทงาน</label>
+                  <select id="mtType">
+                    <option value="ตรวจสอบตามแผน">ตรวจสอบตามแผน</option>
+                    <option value="ซ่อมฉุกเฉิน">ซ่อมฉุกเฉิน</option>
+                    <option value="เปลี่ยนอะไหล่">เปลี่ยนอะไหล่</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="mtCost">ค่าใช้จ่าย (บาท)</label>
+                  <input id="mtCost" type="number" min="0" step="0.01" value="0">
+                </div>
+              </div>
+              <label for="mtDesc">รายละเอียด</label>
+              <input id="mtDesc" placeholder="เช่น เปลี่ยนยางล้อหน้า">
+              <label for="mtNextDate">กำหนดวันตรวจสอบครั้งถัดไป</label>
+              <input id="mtNextDate" type="date" required>
+              <button class="btn warn" type="submit">บันทึกการซ่อมบำรุง</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>รายการอุปกรณ์/ทรัพย์สิน</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>ตำแหน่ง</th><th>ตรวจสอบล่าสุด</th><th>กำหนดครั้งถัดไป</th><th>สถานะ</th></tr></thead>
+              <tbody id="assetsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>ประวัติการซ่อมบำรุง</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>วันที่</th><th>อุปกรณ์</th><th>ประเภทงาน</th><th>รายละเอียด</th><th>ค่าใช้จ่าย</th></tr></thead>
+              <tbody id="maintRecordsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== STAFF SHIFT SCHEDULE ========== -->
+      <section id="page-schedule" class="section-hide">
+        <div class="page-head">
+          <p class="eyebrow">Phase 09 · Workforce Scheduling</p>
+          <h1>ตารางกะพนักงานดูแลคลังสินค้า</h1>
+          <p class="page-desc">จัดการรายชื่อพนักงานและกำหนดตารางกะการทำงานล่วงหน้า</p>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <h2><span class="dot"></span>เพิ่มพนักงาน</h2>
+            <div class="msg" id="msgEmployee"></div>
+            <form id="formEmployee">
+              <label for="emName">ชื่อพนักงาน</label>
+              <input id="emName" placeholder="เช่น สมชาย ใจดี" required>
+              <div class="field-row">
+                <div>
+                  <label for="emPosition">ตำแหน่ง</label>
+                  <select id="emPosition">
+                    <option value="พนักงานคลัง">พนักงานคลัง</option>
+                    <option value="หัวหน้ากะ">หัวหน้ากะ</option>
+                    <option value="พนักงานขับรถยก">พนักงานขับรถยก</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="emPhone">เบอร์โทร</label>
+                  <input id="emPhone" placeholder="เช่น 08-1234-5678">
+                </div>
+              </div>
+              <button class="btn" type="submit">+ เพิ่มพนักงาน</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2><span class="dot"></span>กำหนดตารางกะ</h2>
+            <div class="msg" id="msgSchedule"></div>
+            <form id="formSchedule">
+              <label for="scEmployee">เลือกพนักงาน</label>
+              <select id="scEmployee" required></select>
+              <div class="field-row">
+                <div>
+                  <label for="scDate">วันที่</label>
+                  <input id="scDate" type="date" required>
+                </div>
+                <div>
+                  <label for="scShift">กะการทำงาน</label>
+                  <select id="scShift">
+                    <option value="เช้า (08:00–16:00)">เช้า (08:00–16:00)</option>
+                    <option value="บ่าย (16:00–00:00)">บ่าย (16:00–00:00)</option>
+                    <option value="ดึก (00:00–08:00)">ดึก (00:00–08:00)</option>
+                    <option value="หยุด">หยุด</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn" type="submit">บันทึกตารางกะ</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>ตารางกะ 7 วันข้างหน้า</h2>
+          <div class="tbl-wrap">
+            <table id="scheduleGridTable"><thead></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h2><span class="dot"></span>พนักงานทั้งหมด</h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ชื่อ</th><th>ตำแหน่ง</th><th>เบอร์โทร</th><th>ดำเนินการ</th></tr></thead>
+              <tbody id="employeesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <div class="foot-note">
+        StockGrid — Mini-WMS (Phase 0–9: Receiving · Orders · Returns · Reports · Email Alerts · Suppliers · Customers · Maintenance · Scheduling) · ข้อมูลทั้งหมดบันทึกอัตโนมัติไว้ในเบราว์เซอร์เครื่องนี้ (localStorage) รีเฟรชหน้าแล้วข้อมูลยังอยู่เหมือนเดิม — ใช้ปุ่ม "ล้างข้อมูลทั้งหมด" ในหน้าแจ้งเตือนหากต้องการเริ่มต้นใหม่
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- In-memory "database" ---------------- */
+  const ZONES = ['A','B','C','D'];
+  let locations = [];
+  ZONES.forEach(zone=>{
+    for(let i=1;i<=6;i++){
+      locations.push({ id: locations.length+1, code: zone+'-'+String(i).padStart(2,'0'), zone, status:'ว่าง' });
+    }
+  });
+
+  let products = [];        // {id, sku, name, unit, reorder_point, category, supplier, price, image_url}
+  let inventory = [];       // {id, product_id, location_id, quantity}
+  let transactions = [];    // {id, product_id, type, quantity, ref_document, location_code, time}
+  let orders = [];          // {id, order_no, status, items:[{product_id, quantity}], created}
+  let suppliers = [];       // {id, name, phone, email, terms}
+  let customers = [];       // {id, name, type, phone, email, address}
+  let assets = [];          // {id, name, type, location, last_maintenance, next_maintenance}
+  let maintRecords = [];    // {id, asset_id, date, type, description, cost}
+  let employees = [];       // {id, name, position, phone}
+  let scheduleAssignments = []; // {id, employee_id, date, shift}
+  let nextProductId=1, nextTxId=1, nextOrderId=1, nextSupplierId=1, nextCustomerId=1;
+  let nextAssetId=1, nextMaintId=1, nextEmployeeId=1, nextScheduleId=1;
+
+  /* ---------------- Roles & permissions ---------------- */
+  const DEFAULT_USERS = [
+    { username:'admin', password:'admin123', role:'admin' },
+    { username:'staff', password:'staff123', role:'staff' }
+  ];
+  const ROLE_PAGES = {
+    admin: ['dashboard','receiving','inventory','orders','returns','locations','reports','alerts','suppliers','customers','maintenance','schedule'],
+    staff: ['dashboard','receiving','inventory','orders','returns','locations','customers','schedule']
+  };
+  let currentUser = null; // { username, role }
+
+  const STATUS_ORDER = ['รอดำเนินการ','จัดเตรียมแล้ว','จัดส่งแล้ว'];
+
+  /* ---------------- Helpers ---------------- */
+  function findProduct(id){ return products.find(p=>p.id===id); }
+  function findCustomer(id){ return customers.find(c=>c.id===id); }
+  function findLocation(id){ return locations.find(l=>l.id===id); }
+  function findInventory(productId){ return inventory.find(i=>i.product_id===productId); }
+  function getAvailableLocation(){ return locations.find(l=>l.status==='ว่าง'); }
+  function nowLabel(){ return new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+  function money(n){ return '฿' + Number(n||0).toLocaleString('th-TH', {maximumFractionDigits:2}); }
+  function showMsg(el, text, ok){
+    el.textContent = text;
+    el.className = 'msg show ' + (ok?'ok':'err');
+    setTimeout(()=>{ el.classList.remove('show'); }, 3400);
+  }
+
+  // เพิ่มสต็อกสินค้าเข้าตำแหน่งจัดเก็บ (ใช้ทั้งตอนรับเข้าและรับคืน)
+  function addStock(productId, qty){
+    let invRow = findInventory(productId);
+    if(invRow){
+      invRow.quantity += qty;
+      return { ok:true, location: findLocation(invRow.location_id) };
+    }
+    const loc = getAvailableLocation();
+    if(!loc) return { ok:false };
+    loc.status = 'เต็ม';
+    invRow = { id: inventory.length+1, product_id: productId, location_id: loc.id, quantity: qty };
+    inventory.push(invRow);
+    return { ok:true, location: loc };
+  }
+
+  // ตัดสต็อกสินค้า คืนค่า false ถ้าไม่พอ
+  function removeStock(productId, qty){
+    const invRow = findInventory(productId);
+    if(!invRow || invRow.quantity < qty) return false;
+    invRow.quantity -= qty;
+    if(invRow.quantity === 0){
+      const loc = findLocation(invRow.location_id);
+      if(loc) loc.status = 'ว่าง';
+      inventory = inventory.filter(i=>i.id !== invRow.id);
+    }
+    return true;
+  }
+
+  /* ---------------- Navigation ---------------- */
+  const pages = ['dashboard','receiving','inventory','orders','returns','locations','reports','alerts','suppliers','customers','maintenance','schedule'];
+  function goTo(page){
+    // ป้องกันการเข้าหน้าที่ไม่มีสิทธิ์ (เช่น พนักงานพยายามเข้าหน้ารายงาน/ตั้งค่า)
+    if(currentUser && ROLE_PAGES[currentUser.role] && !ROLE_PAGES[currentUser.role].includes(page)){
+      page = 'dashboard';
+    }
+    pages.forEach(p=>{ document.getElementById('page-'+p).classList.toggle('section-hide', p!==page); });
+    document.querySelectorAll('#nav button, #mobileNav button').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.page===page);
+    });
+    if(page==='dashboard') renderDashboard();
+    if(page==='inventory') renderInventoryTable();
+    if(page==='locations') renderRack();
+    if(page==='orders') renderOrdersTable();
+    if(page==='reports') renderReports();
+    if(page==='alerts') renderAlertLog();
+    if(page==='suppliers') renderSuppliersTable();
+    if(page==='customers') renderCustomersTable();
+    if(page==='maintenance') renderMaintenancePage();
+    if(page==='schedule') renderSchedulePage();
+  }
+  document.querySelectorAll('#nav button, #mobileNav button').forEach(btn=>{
+    btn.addEventListener('click', ()=>goTo(btn.dataset.page));
+  });
+
+  function applyRoleVisibility(){
+    if(!currentUser) return;
+    const allowed = ROLE_PAGES[currentUser.role] || [];
+    document.querySelectorAll('#nav button, #mobileNav button').forEach(btn=>{
+      btn.style.display = allowed.includes(btn.dataset.page) ? '' : 'none';
+    });
+    // staff ห้ามเพิ่มสินค้าใหม่ (ทำได้แค่รับสินค้าเข้าตามสินค้าที่มีอยู่แล้ว)
+    const addProductCard = document.getElementById('addProductCard');
+    if(addProductCard) addProductCard.style.display = (currentUser.role==='admin') ? '' : 'none';
+    document.getElementById('currentUserLabel').textContent = `${currentUser.username} (${currentUser.role==='admin'?'ผู้ดูแล':'พนักงาน'})`;
+  }
+
+  /* ---------------- Login / Logout ---------------- */
+  const SESSION_KEY = 'stockgrid_session';
+  const USERS_KEY = 'stockgrid_users';
+
+  function getUsers(){
+    try{
+      const raw = localStorage.getItem(USERS_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(err){ /* ignore */ }
+    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+    return DEFAULT_USERS.slice();
+  }
+
+  function tryLogin(username, password){
+    const users = getUsers();
+    return users.find(u=>u.username===username && u.password===password) || null;
+  }
+
+  function showApp(){
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appShell').style.display = '';
+    applyRoleVisibility();
+  }
+
+  document.getElementById('formLogin').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgLogin');
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const user = tryLogin(username, password);
+    if(!user){
+      msg.textContent = 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง';
+      msg.className = 'msg show err';
+      return;
+    }
+    currentUser = { username: user.username, role: user.role };
+    try{ sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); }catch(err){ /* ignore */ }
+    showApp();
+    goTo('dashboard');
+  });
+
+  document.getElementById('btnLogout').addEventListener('click', function(){
+    currentUser = null;
+    try{ sessionStorage.removeItem(SESSION_KEY); }catch(err){ /* ignore */ }
+    document.getElementById('appShell').style.display = 'none';
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('loginPass').value = '';
+  });
+
+  function restoreSession(){
+    try{
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if(!raw) return false;
+      const saved = JSON.parse(raw);
+      if(saved && saved.username && saved.role){ currentUser = saved; return true; }
+    }catch(err){ /* ignore */ }
+    return false;
+  }
+
+  /* ---------------- Render: product selects ---------------- */
+  function productOptionsHtml(){
+    return products.length
+      ? products.map(p=>`<option value="${p.id}">${escapeHtml(p.sku)} — ${escapeHtml(p.name)}</option>`).join('')
+      : `<option value="">— ยังไม่มีสินค้าในระบบ —</option>`;
+  }
+  function renderAllProductSelects(){
+    document.getElementById('rProduct').innerHTML = productOptionsHtml();
+    document.getElementById('rtProduct').innerHTML = productOptionsHtml();
+    document.querySelectorAll('.order-item-select').forEach(sel=>{
+      const prev = sel.value;
+      sel.innerHTML = productOptionsHtml();
+      if(prev) sel.value = prev;
+    });
+  }
+
+  /* ---------------- Suppliers ---------------- */
+  function renderSupplierSelect(){
+    const sel = document.getElementById('pSupplier');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— ไม่ระบุ / เพิ่มที่หน้าซัพพลายเออร์ —</option>' +
+      suppliers.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+    if(prev) sel.value = prev;
+  }
+
+  function renderSuppliersTable(){
+    const tbody = document.getElementById('suppliersTable');
+    if(!suppliers.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">ยังไม่มีข้อมูลซัพพลายเออร์</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = suppliers.map(s=>`<tr>
+      <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+      <td>${escapeHtml(s.phone||'-')}</td>
+      <td>${escapeHtml(s.email||'-')}</td>
+      <td>${escapeHtml(s.terms||'-')}</td>
+      <td><button class="btn small" data-del-supplier="${s.id}" style="background:var(--danger);color:#fff;">ลบ</button></td>
+    </tr>`).join('');
+    tbody.querySelectorAll('[data-del-supplier]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = parseInt(btn.dataset.delSupplier,10);
+        suppliers = suppliers.filter(s=>s.id!==id);
+        renderSuppliersTable(); renderSupplierSelect(); saveState();
+      });
+    });
+  }
+
+  document.getElementById('formSupplier').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgSupplier');
+    const name = document.getElementById('spName').value.trim();
+    const phone = document.getElementById('spPhone').value.trim();
+    const email = document.getElementById('spEmail').value.trim();
+    const terms = document.getElementById('spTerms').value.trim();
+    if(!name){ showMsg(msg, 'กรุณาระบุชื่อซัพพลายเออร์', false); return; }
+    if(suppliers.some(s=>s.name.toLowerCase()===name.toLowerCase())){
+      showMsg(msg, `ซัพพลายเออร์ "${name}" มีอยู่ในระบบแล้ว`, false); return;
+    }
+    suppliers.push({ id: nextSupplierId++, name, phone, email, terms });
+    showMsg(msg, `เพิ่มซัพพลายเออร์ "${name}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    renderSuppliersTable(); renderSupplierSelect(); saveState();
+  });
+
+  /* ---------------- Customers / Distributors ---------------- */
+  function renderCustomerSelect(){
+    const sel = document.getElementById('oCustomer');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— ไม่ระบุ / เพิ่มที่หน้าลูกค้า —</option>' +
+      customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.type)})</option>`).join('');
+    if(prev) sel.value = prev;
+  }
+
+  function renderCustomersTable(){
+    const tbody = document.getElementById('customersTable');
+    if(!customers.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">ยังไม่มีข้อมูลลูกค้า/ตัวแทนจำหน่าย</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = customers.map(c=>`<tr>
+      <td style="font-weight:600;">${escapeHtml(c.name)}</td>
+      <td><span class="tag ${c.type==='ตัวแทนจำหน่าย'?'ok':'pending'}">${escapeHtml(c.type)}</span></td>
+      <td>${escapeHtml(c.phone||'-')}</td>
+      <td>${escapeHtml(c.email||'-')}</td>
+      <td>${escapeHtml(c.address||'-')}</td>
+      <td><button class="btn small" data-del-customer="${c.id}" style="background:var(--danger);color:#fff;">ลบ</button></td>
+    </tr>`).join('');
+    tbody.querySelectorAll('[data-del-customer]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = parseInt(btn.dataset.delCustomer,10);
+        customers = customers.filter(c=>c.id!==id);
+        renderCustomersTable(); renderCustomerSelect(); saveState();
+      });
+    });
+  }
+
+  document.getElementById('formCustomer').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgCustomer');
+    const name = document.getElementById('cuName').value.trim();
+    const type = document.getElementById('cuType').value;
+    const phone = document.getElementById('cuPhone').value.trim();
+    const email = document.getElementById('cuEmail').value.trim();
+    const address = document.getElementById('cuAddress').value.trim();
+    if(!name){ showMsg(msg, 'กรุณาระบุชื่อลูกค้า/ตัวแทนจำหน่าย', false); return; }
+    if(customers.some(c=>c.name.toLowerCase()===name.toLowerCase())){
+      showMsg(msg, `"${name}" มีอยู่ในระบบแล้ว`, false); return;
+    }
+    customers.push({ id: nextCustomerId++, name, type, phone, email, address });
+    showMsg(msg, `เพิ่ม "${name}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    renderCustomersTable(); renderCustomerSelect(); saveState();
+  });
+
+  /* ---------------- Maintenance ---------------- */
+  function findAsset(id){ return assets.find(a=>a.id===id); }
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+  function daysBetween(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    const now = new Date(todayISO() + 'T00:00:00');
+    return Math.round((d - now) / (1000*60*60*24));
+  }
+  function assetStatusInfo(asset){
+    if(!asset.next_maintenance) return { label:'ไม่ได้กำหนด', cls:'ok' };
+    const diff = daysBetween(asset.next_maintenance);
+    if(diff < 0) return { label:`เกินกำหนด ${Math.abs(diff)} วัน`, cls:'low' };
+    if(diff <= 7) return { label:`ใกล้ถึงกำหนด (อีก ${diff} วัน)`, cls:'pending' };
+    return { label:'ปกติ', cls:'ok' };
+  }
+
+  function renderAssetSelect(){
+    const sel = document.getElementById('mtAsset');
+    sel.innerHTML = assets.length
+      ? assets.map(a=>`<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('')
+      : `<option value="">— ยังไม่มีอุปกรณ์ในระบบ —</option>`;
+  }
+
+  function renderAssetsTable(){
+    const tbody = document.getElementById('assetsTable');
+    if(!assets.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">ยังไม่มีข้อมูลอุปกรณ์/ทรัพย์สิน</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = assets.map(a=>{
+      const st = assetStatusInfo(a);
+      return `<tr>
+        <td style="font-weight:600;">${escapeHtml(a.name)}</td>
+        <td>${escapeHtml(a.type)}</td>
+        <td>${escapeHtml(a.location||'-')}</td>
+        <td class="m">${escapeHtml(a.last_maintenance||'-')}</td>
+        <td class="m">${escapeHtml(a.next_maintenance||'-')}</td>
+        <td><span class="tag ${st.cls}">${escapeHtml(st.label)}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderMaintRecordsTable(){
+    const tbody = document.getElementById('maintRecordsTable');
+    const rows = maintRecords.slice().reverse();
+    tbody.innerHTML = rows.length ? rows.map(r=>{
+      const a = findAsset(r.asset_id);
+      return `<tr>
+        <td class="m">${escapeHtml(r.date)}</td>
+        <td>${escapeHtml(a?a.name:'-')}</td>
+        <td>${escapeHtml(r.type)}</td>
+        <td>${escapeHtml(r.description||'-')}</td>
+        <td>${money(r.cost)}</td>
+      </tr>`;
+    }).join('') : `<tr class="empty-row"><td colspan="5">ยังไม่มีประวัติการซ่อมบำรุง</td></tr>`;
+  }
+
+  function renderMaintenanceStats(){
+    document.getElementById('statAssets').textContent = assets.length;
+    let dueSoon = 0, overdue = 0;
+    assets.forEach(a=>{
+      if(!a.next_maintenance) return;
+      const diff = daysBetween(a.next_maintenance);
+      if(diff < 0) overdue++;
+      else if(diff <= 7) dueSoon++;
+    });
+    document.getElementById('statDueSoon').textContent = dueSoon;
+    document.getElementById('statOverdue').textContent = overdue;
+  }
+
+  function renderMaintenancePage(){
+    renderAssetsTable();
+    renderMaintRecordsTable();
+    renderMaintenanceStats();
+  }
+
+  document.getElementById('formAsset').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgAsset');
+    const name = document.getElementById('asName').value.trim();
+    const type = document.getElementById('asType').value;
+    const location = document.getElementById('asLocation').value.trim();
+    const nextDate = document.getElementById('asNextDate').value;
+    if(!name || !nextDate){ showMsg(msg,'กรุณากรอกชื่ออุปกรณ์และวันครบกำหนดตรวจสอบ', false); return; }
+    assets.push({ id: nextAssetId++, name, type, location, last_maintenance:'', next_maintenance: nextDate });
+    showMsg(msg, `เพิ่มอุปกรณ์ "${name}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    renderAssetSelect(); renderMaintenancePage(); saveState();
+  });
+
+  document.getElementById('formMaint').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgMaint');
+    const assetId = parseInt(document.getElementById('mtAsset').value, 10);
+    const type = document.getElementById('mtType').value;
+    const cost = parseFloat(document.getElementById('mtCost').value) || 0;
+    const description = document.getElementById('mtDesc').value.trim();
+    const nextDate = document.getElementById('mtNextDate').value;
+    if(!assetId){ showMsg(msg, 'กรุณาเพิ่มอุปกรณ์เข้าระบบก่อน', false); return; }
+    if(!nextDate){ showMsg(msg, 'กรุณาระบุวันตรวจสอบครั้งถัดไป', false); return; }
+    const today = todayISO();
+    maintRecords.push({ id: nextMaintId++, asset_id: assetId, date: today, type, description, cost });
+    const asset = findAsset(assetId);
+    if(asset){ asset.last_maintenance = today; asset.next_maintenance = nextDate; }
+    showMsg(msg, `บันทึกการซ่อมบำรุง "${asset?asset.name:''}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    document.getElementById('mtCost').value = 0;
+    renderMaintenancePage(); saveState();
+  });
+
+  /* ---------------- Staff shift scheduling ---------------- */
+  function findEmployee(id){ return employees.find(e=>e.id===id); }
+
+  function renderEmployeeSelect(){
+    const sel = document.getElementById('scEmployee');
+    sel.innerHTML = employees.length
+      ? employees.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${escapeHtml(e.position)})</option>`).join('')
+      : `<option value="">— ยังไม่มีพนักงานในระบบ —</option>`;
+  }
+
+  function renderEmployeesTable(){
+    const tbody = document.getElementById('employeesTable');
+    if(!employees.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="4">ยังไม่มีข้อมูลพนักงาน</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = employees.map(e=>`<tr>
+      <td style="font-weight:600;">${escapeHtml(e.name)}</td>
+      <td>${escapeHtml(e.position)}</td>
+      <td>${escapeHtml(e.phone||'-')}</td>
+      <td><button class="btn small" data-del-employee="${e.id}" style="background:var(--danger);color:#fff;">ลบ</button></td>
+    </tr>`).join('');
+    tbody.querySelectorAll('[data-del-employee]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = parseInt(btn.dataset.delEmployee,10);
+        employees = employees.filter(e=>e.id!==id);
+        scheduleAssignments = scheduleAssignments.filter(s=>s.employee_id!==id);
+        renderSchedulePage(); renderEmployeeSelect(); saveState();
+      });
+    });
+  }
+
+  const SHIFT_TAG = {
+    'เช้า (08:00–16:00)': { short:'เช้า', cls:'ok' },
+    'บ่าย (16:00–00:00)': { short:'บ่าย', cls:'pending' },
+    'ดึก (00:00–08:00)': { short:'ดึก', cls:'ret' },
+    'หยุด': { short:'หยุด', cls:'low' }
+  };
+
+  function renderScheduleGrid(){
+    const table = document.getElementById('scheduleGridTable');
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+
+    // สร้างวันที่ 7 วันข้างหน้า เริ่มจากวันนี้
+    const days = [];
+    for(let i=0;i<7;i++){
+      const d = new Date();
+      d.setDate(d.getDate()+i);
+      days.push(d.toISOString().slice(0,10));
+    }
+    const dayLabel = (iso)=>{
+      const d = new Date(iso+'T00:00:00');
+      return d.toLocaleDateString('th-TH', { weekday:'short', day:'numeric', month:'short' });
+    };
+
+    thead.innerHTML = `<tr><th>พนักงาน</th>${days.map(d=>`<th>${dayLabel(d)}</th>`).join('')}</tr>`;
+
+    if(!employees.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="${days.length+1}">ยังไม่มีข้อมูลพนักงาน</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = employees.map(emp=>{
+      const cells = days.map(d=>{
+        const assign = scheduleAssignments.find(s=>s.employee_id===emp.id && s.date===d);
+        if(!assign) return `<td class="m" style="color:var(--text-dim);">—</td>`;
+        const tagInfo = SHIFT_TAG[assign.shift] || { short: assign.shift, cls:'ok' };
+        return `<td><span class="tag ${tagInfo.cls}">${escapeHtml(tagInfo.short)}</span></td>`;
+      }).join('');
+      return `<tr><td style="font-weight:600;">${escapeHtml(emp.name)}</td>${cells}</tr>`;
+    }).join('');
+  }
+
+  function renderSchedulePage(){
+    renderEmployeesTable();
+    renderScheduleGrid();
+  }
+
+  document.getElementById('formEmployee').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgEmployee');
+    const name = document.getElementById('emName').value.trim();
+    const position = document.getElementById('emPosition').value;
+    const phone = document.getElementById('emPhone').value.trim();
+    if(!name){ showMsg(msg, 'กรุณาระบุชื่อพนักงาน', false); return; }
+    employees.push({ id: nextEmployeeId++, name, position, phone });
+    showMsg(msg, `เพิ่มพนักงาน "${name}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    renderEmployeeSelect(); renderSchedulePage(); saveState();
+  });
+
+  document.getElementById('formSchedule').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgSchedule');
+    const employeeId = parseInt(document.getElementById('scEmployee').value, 10);
+    const date = document.getElementById('scDate').value;
+    const shift = document.getElementById('scShift').value;
+    if(!employeeId){ showMsg(msg, 'กรุณาเพิ่มพนักงานเข้าระบบก่อน', false); return; }
+    if(!date){ showMsg(msg, 'กรุณาระบุวันที่', false); return; }
+
+    // ถ้ามีตารางกะของพนักงานคนนี้ในวันนี้อยู่แล้ว ให้อัปเดตแทนการเพิ่มซ้ำ
+    let existing = scheduleAssignments.find(s=>s.employee_id===employeeId && s.date===date);
+    if(existing){
+      existing.shift = shift;
+    } else {
+      scheduleAssignments.push({ id: nextScheduleId++, employee_id: employeeId, date, shift });
+    }
+    const emp = findEmployee(employeeId);
+    showMsg(msg, `กำหนดตารางกะของ "${emp?emp.name:''}" วันที่ ${date} เรียบร้อยแล้ว`, true);
+    this.reset();
+    renderSchedulePage(); saveState();
+  });
+
+  function thumbHtml(p){
+    if(p.image_url){
+      return `<div class="thumb"><img src="${escapeHtml(p.image_url)}" alt="" onerror="this.parentElement.innerHTML='${escapeHtml(p.sku.slice(0,2).toUpperCase())}'"></div>`;
+    }
+    return `<div class="thumb">${escapeHtml(p.sku.slice(0,2).toUpperCase())}</div>`;
+  }
+
+  /* ---------------- Render: rack / location grid ---------------- */
+  function renderRack(){
+    const grid = document.getElementById('rackGrid');
+    grid.innerHTML = locations.map(l=>{
+      const full = l.status === 'เต็ม';
+      return `<div class="cell ${full?'full':''}" title="${escapeHtml(l.code)} — ${full?'มีสินค้า':'ว่าง'}"><div class="code">${escapeHtml(l.code)}</div></div>`;
+    }).join('');
+  }
+
+  /* ---------------- Render: inventory table ---------------- */
+  function renderInventoryTable(){
+    const tbody = document.getElementById('invTable');
+    const q = (document.getElementById('invSearch').value || '').trim().toLowerCase();
+    const rows = inventory
+      .map(inv=>({ inv, p: findProduct(inv.product_id), loc: findLocation(inv.location_id) }))
+      .filter(r=>r.p && (!q || r.p.sku.toLowerCase().includes(q) || r.p.name.toLowerCase().includes(q) || (r.p.category||'').toLowerCase().includes(q)))
+      .sort((a,b)=> a.p.sku.localeCompare(b.p.sku));
+
+    if(!rows.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">ยังไม่มีข้อมูลสินค้าคงคลัง — ลองรับสินค้าเข้าคลังก่อน</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(({inv,p,loc})=>{
+      const low = inv.quantity < p.reorder_point;
+      const value = inv.quantity * (p.price||0);
+      return `<tr>
+        <td><div class="prod-cell">${thumbHtml(p)}<div><div>${escapeHtml(p.name)}</div><div class="m" style="font-size:11px;color:var(--text-dim);">${escapeHtml(p.sku)}</div></div></div></td>
+        <td>${escapeHtml(p.category||'-')}</td>
+        <td class="m">${escapeHtml(loc?loc.code:'-')}</td>
+        <td>${inv.quantity} ${escapeHtml(p.unit)}</td>
+        <td>${money(p.price)}</td>
+        <td>${money(value)}</td>
+        <td>${escapeHtml(p.supplier||'-')}</td>
+        <td>${low ? '<span class="tag low">ต่ำกว่าจุดสั่งซื้อ</span>' : '<span class="tag ok">ปกติ</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('invSearch').addEventListener('input', renderInventoryTable);
+
+  /* ---------------- Render: receiving / returns logs ---------------- */
+  function renderReceivingLog(){
+    const tbody = document.getElementById('receivingLog');
+    const rows = transactions.filter(t=>t.type==='รับเข้า').slice().reverse();
+    tbody.innerHTML = rows.length ? rows.map(t=>{
+      const p = findProduct(t.product_id);
+      return `<tr>
+        <td>${t.time}</td>
+        <td>${escapeHtml(p?p.name:'-')} <span class="m" style="color:var(--text-dim);font-size:11px;">${escapeHtml(p?p.sku:'')}</span></td>
+        <td>+${t.quantity}</td>
+        <td class="m">${escapeHtml(t.location_code||'-')}</td>
+        <td class="m">${escapeHtml(t.ref_document||'-')}</td>
+        <td><button class="btn ghost small" data-print-tx="${t.id}">พิมพ์</button></td>
+      </tr>`;
+    }).join('') : `<tr class="empty-row"><td colspan="6">ยังไม่มีประวัติการรับสินค้า</td></tr>`;
+    tbody.querySelectorAll('[data-print-tx]').forEach(btn=>{
+      btn.addEventListener('click', ()=> printReceivingDoc(parseInt(btn.dataset.printTx,10)));
+    });
+  }
+
+  function renderReturnsLog(){
+    const tbody = document.getElementById('returnsLog');
+    const rows = transactions.filter(t=>t.type==='คืนสินค้า').slice().reverse();
+    tbody.innerHTML = rows.length ? rows.map(t=>{
+      const p = findProduct(t.product_id);
+      return `<tr>
+        <td>${t.time}</td>
+        <td style="font-weight:600;">${escapeHtml(p?p.name:'-')}</td>
+        <td><span class="tag ret">+${t.quantity}</span></td>
+        <td>${escapeHtml(t.reason||'-')}</td>
+        <td class="m" style="color:var(--cyan);font-weight:700;">${escapeHtml(t.location_code||'-')}</td>
+      </tr>`;
+    }).join('') : `<tr class="empty-row"><td colspan="5">ยังไม่มีประวัติการรับคืน</td></tr>`;
+  }
+
+  /* ---------------- Render: orders table ---------------- */
+  function orderValue(order){
+    return order.items.reduce((sum,it)=>{
+      const p = findProduct(it.product_id);
+      return sum + (p ? p.price*it.quantity : 0);
+    }, 0);
+  }
+  function orderStatusTag(status){
+    if(status==='รอดำเนินการ') return '<span class="tag pending">รอดำเนินการ</span>';
+    if(status==='จัดเตรียมแล้ว') return '<span class="tag picked">จัดเตรียมแล้ว</span>';
+    return '<span class="tag shipped">จัดส่งแล้ว</span>';
+  }
+  function renderOrdersTable(){
+    const tbody = document.getElementById('ordersTable');
+    if(!orders.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">ยังไม่มีคำสั่งซื้อในระบบ</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = orders.slice().reverse().map(o=>{
+      const itemsLabel = o.items.map(it=>{
+        const p = findProduct(it.product_id);
+        return `${p?p.sku:'?'} × ${it.quantity}`;
+      }).join(', ');
+      const cust = o.customer_id ? findCustomer(o.customer_id) : null;
+      let actionsHtml = '';
+      if(o.status==='รอดำเนินการ'){
+        actionsHtml = `<button class="btn small go" data-action="pick" data-id="${o.id}">จัดเตรียมสินค้า</button>`;
+      } else if(o.status==='จัดเตรียมแล้ว'){
+        actionsHtml = `<button class="btn small" data-action="ship" data-id="${o.id}">จัดส่งสินค้า</button>`;
+      } else {
+        actionsHtml = `<span class="m" style="color:var(--text-dim);font-size:12px;">เสร็จสิ้น</span>`;
+      }
+      return `<tr>
+        <td class="m">${escapeHtml(o.order_no)}</td>
+        <td>${escapeHtml(cust ? cust.name : '-')}</td>
+        <td class="order-items-list">${escapeHtml(itemsLabel)}</td>
+        <td>${money(orderValue(o))}</td>
+        <td>${orderStatusTag(o.status)}</td>
+        <td style="display:flex; gap:6px; flex-wrap:wrap;">${actionsHtml}<button class="btn ghost small" data-print-order="${o.id}">พิมพ์</button></td>
+      </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('button[data-action]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = parseInt(btn.dataset.id,10);
+        if(btn.dataset.action==='pick') pickOrder(id);
+        if(btn.dataset.action==='ship') shipOrder(id);
+      });
+    });
+    tbody.querySelectorAll('[data-print-order]').forEach(btn=>{
+      btn.addEventListener('click', ()=> printOrderDoc(parseInt(btn.dataset.printOrder,10)));
+    });
+  }
+
+  function pickOrder(orderId){
+    const order = orders.find(o=>o.id===orderId);
+    if(!order) return;
+    // 1) ตรวจสอบสต็อกทุกรายการก่อนตัดจริง
+    const shortages = [];
+    order.items.forEach(it=>{
+      const inv = findInventory(it.product_id);
+      const have = inv ? inv.quantity : 0;
+      if(have < it.quantity){
+        const p = findProduct(it.product_id);
+        shortages.push(`${p?p.name:'สินค้า'} ขาด ${it.quantity-have} ${p?p.unit:''}`);
+      }
+    });
+    if(shortages.length){
+      alert('ไม่สามารถจัดเตรียมสินค้าได้ สต็อกไม่เพียงพอ:\n- ' + shortages.join('\n- '));
+      return;
+    }
+    // 2) ตัดสต็อกจริงทีละรายการ
+    order.items.forEach(it=>{
+      removeStock(it.product_id, it.quantity);
+      transactions.push({
+        id: nextTxId++, product_id: it.product_id, type:'จ่ายออก',
+        quantity: it.quantity, ref_document: order.order_no, time: nowLabel()
+      });
+    });
+    order.status = 'จัดเตรียมแล้ว';
+    renderOrdersTable(); renderDashboard(); renderInventoryTable(); renderRack();
+    checkLowStockAndNotify();
+    saveState();
+  }
+
+  function shipOrder(orderId){
+    const order = orders.find(o=>o.id===orderId);
+    if(!order) return;
+    order.status = 'จัดส่งแล้ว';
+    renderOrdersTable(); renderDashboard();
+    saveState();
+  }
+
+  /* ---------------- Order item builder ---------------- */
+  const orderItemsWrap = document.getElementById('orderItems');
+  function addOrderItemRow(){
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <div>
+        <label>สินค้า</label>
+        <select class="order-item-select">${productOptionsHtml()}</select>
+      </div>
+      <div>
+        <label>จำนวน</label>
+        <input type="number" class="order-item-qty" min="1" value="1">
+      </div>
+      <button type="button" class="icon-btn" title="ลบรายการนี้">×</button>
+    `;
+    row.querySelector('.icon-btn').addEventListener('click', ()=>{
+      if(orderItemsWrap.children.length > 1) row.remove();
+    });
+    orderItemsWrap.appendChild(row);
+  }
+  document.getElementById('addItemBtn').addEventListener('click', addOrderItemRow);
+
+  document.getElementById('formOrder').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgOrder');
+    const orderNo = document.getElementById('oNo').value.trim();
+    if(!orderNo){ showMsg(msg,'กรุณาระบุเลขที่คำสั่งซื้อ', false); return; }
+    if(orders.some(o=>o.order_no.toLowerCase()===orderNo.toLowerCase())){
+      showMsg(msg, `เลขที่คำสั่งซื้อ "${orderNo}" มีอยู่แล้ว`, false); return;
+    }
+    const items = [];
+    orderItemsWrap.querySelectorAll('.item-row').forEach(row=>{
+      const pid = parseInt(row.querySelector('.order-item-select').value, 10);
+      const qty = parseInt(row.querySelector('.order-item-qty').value, 10);
+      if(pid && qty > 0) items.push({ product_id: pid, quantity: qty });
+    });
+    if(!items.length){ showMsg(msg, 'กรุณาเพิ่มอย่างน้อย 1 รายการสินค้า', false); return; }
+
+    const customerId = parseInt(document.getElementById('oCustomer').value, 10) || null;
+    orders.push({ id: nextOrderId++, order_no: orderNo, customer_id: customerId, status:'รอดำเนินการ', items, created: nowLabel() });
+    showMsg(msg, `สร้างคำสั่งซื้อ "${orderNo}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    orderItemsWrap.innerHTML = '';
+    addOrderItemRow();
+    renderOrdersTable(); renderDashboard();
+    saveState();
+  });
+
+  /* ---------------- Form: add product ---------------- */
+  document.getElementById('formProduct').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgProduct');
+    const sku = document.getElementById('pSku').value.trim();
+    const name = document.getElementById('pName').value.trim();
+    const category = document.getElementById('pCategory').value;
+    const unit = document.getElementById('pUnit').value.trim();
+    const reorder = parseInt(document.getElementById('pReorder').value, 10) || 0;
+    const supplier = document.getElementById('pSupplier').value.trim();
+    const price = parseFloat(document.getElementById('pPrice').value) || 0;
+    const image_url = document.getElementById('pImage').value.trim();
+
+    if(!sku || !name || !unit){ showMsg(msg,'กรุณากรอกข้อมูลให้ครบถ้วน', false); return; }
+    if(products.some(p=>p.sku.toLowerCase()===sku.toLowerCase())){
+      showMsg(msg, `รหัสสินค้า "${sku}" มีอยู่ในระบบแล้ว`, false); return;
+    }
+    products.push({ id: nextProductId++, sku, name, unit, reorder_point:reorder, category, supplier, price, image_url });
+    showMsg(msg, `เพิ่มสินค้า "${name}" เรียบร้อยแล้ว`, true);
+    this.reset();
+    document.getElementById('pReorder').value = 10;
+    renderAllProductSelects();
+    renderDashboard();
+    saveState();
+  });
+
+  /* ---------------- Form: receive stock ---------------- */
+  document.getElementById('formReceive').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgReceive');
+    const productId = parseInt(document.getElementById('rProduct').value, 10);
+    const qty = parseInt(document.getElementById('rQty').value, 10);
+    const doc = document.getElementById('rDoc').value.trim();
+
+    if(!productId){ showMsg(msg,'กรุณาเพิ่มสินค้าเข้าระบบก่อนทำการรับเข้า', false); return; }
+    if(!qty || qty <= 0){ showMsg(msg,'จำนวนต้องมากกว่า 0', false); return; }
+
+    const result = addStock(productId, qty);
+    if(!result.ok){ showMsg(msg,'ไม่มีพื้นที่จัดเก็บว่าง กรุณาติดต่อผู้ดูแลคลัง', false); return; }
+
+    transactions.push({
+      id: nextTxId++, product_id: productId, type:'รับเข้า', quantity: qty,
+      ref_document: doc, location_code: result.location.code, time: nowLabel()
+    });
+    const p = findProduct(productId);
+    showMsg(msg, `รับสินค้า "${p.name}" จำนวน ${qty} ${p.unit} เข้าตำแหน่ง ${result.location.code} เรียบร้อยแล้ว`, true);
+    this.reset();
+    document.getElementById('rQty').value = 1;
+    renderReceivingLog(); renderRack(); renderDashboard(); renderInventoryTable();
+    checkLowStockAndNotify();
+    saveState();
+  });
+
+  /* ---------------- Form: returns ---------------- */
+  document.getElementById('formReturn').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgReturn');
+    const productId = parseInt(document.getElementById('rtProduct').value, 10);
+    const qty = parseInt(document.getElementById('rtQty').value, 10);
+    const reason = document.getElementById('rtReason').value;
+
+    if(!productId){ showMsg(msg,'กรุณาเลือกสินค้า', false); return; }
+    if(!qty || qty <= 0){ showMsg(msg,'จำนวนต้องมากกว่า 0', false); return; }
+
+    const result = addStock(productId, qty);
+    if(!result.ok){ showMsg(msg,'ไม่มีพื้นที่จัดเก็บว่างสำหรับรับคืนสินค้า', false); return; }
+
+    transactions.push({
+      id: nextTxId++, product_id: productId, type:'คืนสินค้า', quantity: qty,
+      reason, location_code: result.location.code, time: nowLabel()
+    });
+    const p = findProduct(productId);
+    showMsg(msg, `รับคืน "${p.name}" จำนวน ${qty} ${p.unit} เข้าตำแหน่ง ${result.location.code} แล้ว`, true);
+    this.reset();
+    document.getElementById('rtQty').value = 1;
+    renderReturnsLog(); renderRack(); renderDashboard(); renderInventoryTable();
+    checkLowStockAndNotify();
+    saveState();
+  });
+
+  /* ---------------- Render: dashboard ---------------- */
+  function inv_lt(inv, p){ return inv.quantity < p.reorder_point; }
+  function renderDashboard(){
+    document.getElementById('statProducts').textContent = products.length;
+
+    const fullCount = locations.filter(l=>l.status==='เต็ม').length;
+    const usage = locations.length ? Math.round((fullCount/locations.length)*100) : 0;
+    document.getElementById('statUsage').textContent = usage + '%';
+
+    const lowItems = inventory.map(inv=>({inv, p:findProduct(inv.product_id)})).filter(r=>r.p && inv_lt(r.inv, r.p));
+    document.getElementById('statLow').textContent = lowItems.length;
+
+    document.getElementById('statPendingOrders').textContent = orders.filter(o=>o.status==='รอดำเนินการ').length;
+
+    const lowBody = document.getElementById('lowStockTable');
+    lowBody.innerHTML = lowItems.length
+      ? lowItems.map(({inv,p})=>`<tr>
+          <td class="m">${escapeHtml(p.sku)}</td><td>${escapeHtml(p.name)}</td><td>${inv.quantity}</td>
+          <td><span class="tag low">ต่ำกว่าจุด (${p.reorder_point})</span></td>
+        </tr>`).join('')
+      : `<tr class="empty-row"><td colspan="4">ไม่มีสินค้าที่ต่ำกว่าจุดสั่งซื้อ</td></tr>`;
+
+    const txBody = document.getElementById('txTableDash');
+    const recentTx = transactions.slice().reverse().slice(0,6);
+    txBody.innerHTML = recentTx.length
+      ? recentTx.map(t=>{
+          const p = findProduct(t.product_id);
+          const tagClass = t.type==='รับเข้า' ? 'in' : (t.type==='คืนสินค้า' ? 'ret' : 'out');
+          return `<tr><td>${t.time}</td><td>${escapeHtml(p?p.name:'-')}</td><td><span class="tag ${tagClass}">${escapeHtml(t.type)}</span></td><td>${t.quantity}</td></tr>`;
+        }).join('')
+      : `<tr class="empty-row"><td colspan="4">ยังไม่มีรายการเคลื่อนไหว</td></tr>`;
+  }
+
+  /* ---------------- Reports & charts ---------------- */
+  let chartOrders=null, chartCategory=null, chartTx=null;
+  function chartTextColor(){ return '#9FB3C8'; }
+  function chartGridColor(){ return 'rgba(255,255,255,0.06)'; }
+
+  function renderReports(){
+    const invValue = inventory.reduce((sum,inv)=>{
+      const p = findProduct(inv.product_id);
+      return sum + (p ? inv.quantity*p.price : 0);
+    }, 0);
+    const shippedOrders = orders.filter(o=>o.status==='จัดส่งแล้ว');
+    const revenue = shippedOrders.reduce((sum,o)=>sum+orderValue(o),0);
+    const fulfillRate = orders.length ? Math.round((shippedOrders.length/orders.length)*100) : 0;
+    const avgOrder = orders.length ? (orders.reduce((s,o)=>s+orderValue(o),0)/orders.length) : 0;
+
+    document.getElementById('kpiInvValue').textContent = money(invValue);
+    document.getElementById('kpiRevenue').textContent = money(revenue);
+    document.getElementById('kpiFulfill').textContent = fulfillRate + '%';
+    document.getElementById('kpiAvgOrder').textContent = money(avgOrder);
+
+    // Chart 1: orders by status
+    const statusCounts = STATUS_ORDER.map(s=>orders.filter(o=>o.status===s).length);
+    const ctx1 = document.getElementById('chartOrders').getContext('2d');
+    if(chartOrders) chartOrders.destroy();
+    chartOrders = new Chart(ctx1, {
+      type:'bar',
+      data:{ labels: STATUS_ORDER, datasets:[{ data: statusCounts, backgroundColor:['#F0A93C','#3FA9F5','#3FCB8B'], borderRadius:6 }] },
+      options:{
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color: chartTextColor() }, grid:{ color: chartGridColor() } },
+          y:{ beginAtZero:true, ticks:{ color: chartTextColor(), stepSize:1 }, grid:{ color: chartGridColor() } }
+        }
+      }
+    });
+
+    // Chart 2: inventory value by category
+    const categories = [...new Set(products.map(p=>p.category||'อื่นๆ'))];
+    const catValues = categories.map(cat=>{
+      return inventory.reduce((sum,inv)=>{
+        const p = findProduct(inv.product_id);
+        if(p && (p.category||'อื่นๆ')===cat) return sum + inv.quantity*p.price;
+        return sum;
+      },0);
+    });
+    const palette = ['#3FA9F5','#3FCB8B','#F0A93C','#9C7BE0','#E5636B','#4FD1C5'];
+    const ctx2 = document.getElementById('chartCategory').getContext('2d');
+    if(chartCategory) chartCategory.destroy();
+    chartCategory = new Chart(ctx2, {
+      type:'doughnut',
+      data:{ labels: categories, datasets:[{ data: catValues, backgroundColor: categories.map((_,i)=>palette[i%palette.length]) }] },
+      options:{
+        plugins:{ legend:{ position:'bottom', labels:{ color: chartTextColor(), boxWidth:12, font:{size:11} } } }
+      }
+    });
+
+    // Chart 3: transactions by type
+    const types = ['รับเข้า','จ่ายออก','คืนสินค้า'];
+    const typeCounts = types.map(t=>transactions.filter(tx=>tx.type===t).length);
+    const ctx3 = document.getElementById('chartTx').getContext('2d');
+    if(chartTx) chartTx.destroy();
+    chartTx = new Chart(ctx3, {
+      type:'bar',
+      data:{ labels: types, datasets:[{ data: typeCounts, backgroundColor:['#3FCB8B','#E5636B','#9C7BE0'], borderRadius:6 }] },
+      options:{
+        indexAxis:'y',
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ beginAtZero:true, ticks:{ color: chartTextColor(), stepSize:1 }, grid:{ color: chartGridColor() } },
+          y:{ ticks:{ color: chartTextColor() }, grid:{ color: chartGridColor() } }
+        }
+      }
+    });
+  }
+
+  /* ---------------- Email notifications (EmailJS) ---------------- */
+  let emailConfig = { publicKey:'', serviceId:'', templateId:'', toEmail:'', ready:false };
+  let autoAlertEnabled = false;
+  let alreadyNotifiedLowStock = new Set(); // product_id ที่แจ้งเตือนไปแล้ว รอจนกว่าสต็อกจะกลับมาปกติ
+  let alertLog = []; // {time, type, subject, status}
+
+  function renderAlertLog(){
+    const tbody = document.getElementById('alertLogTable');
+    if(!alertLog.length){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="4">ยังไม่มีประวัติการแจ้งเตือน</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = alertLog.slice().reverse().map(a=>{
+      const tagClass = a.status==='ส่งสำเร็จ' ? 'ok' : (a.status==='ผิดพลาด' ? 'low' : 'pending');
+      return `<tr>
+        <td>${a.time}</td>
+        <td>${escapeHtml(a.type)}</td>
+        <td>${escapeHtml(a.subject)}</td>
+        <td><span class="tag ${tagClass}">${escapeHtml(a.status)}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function logAlert(type, subject, status){
+    alertLog.push({ time: nowLabel(), type, subject, status });
+    renderAlertLog();
+    saveState();
+  }
+
+  // ส่งอีเมลจริงผ่าน EmailJS — ต้องตั้งค่า Public Key/Service ID/Template ID ก่อน
+  function sendEmail(subject, message, type){
+    if(!emailConfig.ready){
+      logAlert(type, subject, 'ยังไม่ได้ตั้งค่า');
+      return Promise.resolve(false);
+    }
+    if(typeof emailjs === 'undefined'){
+      logAlert(type, subject, 'ผิดพลาด');
+      return Promise.resolve(false);
+    }
+    return emailjs.send(emailConfig.serviceId, emailConfig.templateId, {
+      to_email: emailConfig.toEmail,
+      subject: subject,
+      message: message
+    }).then(()=>{
+      logAlert(type, subject, 'ส่งสำเร็จ');
+      return true;
+    }).catch((err)=>{
+      console.error('EmailJS error:', err);
+      logAlert(type, subject, 'ผิดพลาด');
+      return false;
+    });
+  }
+
+  // ตรวจสอบสินค้าต่ำกว่าจุดสั่งซื้อ และแจ้งเตือนเฉพาะรายการที่ยังไม่เคยแจ้ง (กันสแปม)
+  function checkLowStockAndNotify(){
+    if(!autoAlertEnabled) return;
+    const lowItems = inventory
+      .map(inv=>({ inv, p: findProduct(inv.product_id) }))
+      .filter(r=> r.p && r.inv.quantity < r.p.reorder_point);
+
+    const lowIds = new Set(lowItems.map(r=>r.p.id));
+    // สินค้าที่กลับมาปกติแล้ว -> ลบออกจากรายการที่เคยแจ้ง เพื่อให้แจ้งใหม่ได้ในครั้งหน้า
+    [...alreadyNotifiedLowStock].forEach(id=>{ if(!lowIds.has(id)) alreadyNotifiedLowStock.delete(id); });
+
+    const toNotify = lowItems.filter(r=> !alreadyNotifiedLowStock.has(r.p.id));
+    if(!toNotify.length) return;
+
+    const lines = toNotify.map(r=> `- ${r.p.name} (${r.p.sku}): คงเหลือ ${r.inv.quantity} ${r.p.unit} (จุดสั่งซื้อ ${r.p.reorder_point})`);
+    const subject = `[StockGrid] แจ้งเตือนสินค้าต่ำกว่าจุดสั่งซื้อ ${toNotify.length} รายการ`;
+    const message = `รายการสินค้าที่ต่ำกว่าจุดสั่งซื้อ:\n${lines.join('\n')}\n\nกรุณาพิจารณาสั่งซื้อสินค้าเพิ่มเติม`;
+
+    sendEmail(subject, message, 'สต็อกต่ำ');
+    toNotify.forEach(r=>alreadyNotifiedLowStock.add(r.p.id));
+    saveState();
+  }
+
+  // สร้างและส่งรายงานสรุป (ใช้ทั้งรายวัน/รายสัปดาห์ ต่างกันที่ช่วงเวลาที่กรอง transaction)
+  function sendSummaryReport(period){
+    const now = new Date();
+    const cutoffMs = period==='daily' ? 24*60*60*1000 : 7*24*60*60*1000;
+    // หมายเหตุ: transactions ในระบบนี้เก็บเฉพาะช่วงที่เปิดหน้าเว็บอยู่ (ไม่มี timestamp แบบเต็ม)
+    // จึงสรุปจากรายการทั้งหมดที่มีอยู่ในเซสชันปัจจุบันแทนการกรองตามวันที่จริง
+    const totalIn = transactions.filter(t=>t.type==='รับเข้า').reduce((s,t)=>s+t.quantity,0);
+    const totalOut = transactions.filter(t=>t.type==='จ่ายออก').reduce((s,t)=>s+t.quantity,0);
+    const totalReturn = transactions.filter(t=>t.type==='คืนสินค้า').reduce((s,t)=>s+t.quantity,0);
+    const shippedCount = orders.filter(o=>o.status==='จัดส่งแล้ว').length;
+    const pendingCount = orders.filter(o=>o.status==='รอดำเนินการ').length;
+    const lowItems = inventory.map(inv=>({inv,p:findProduct(inv.product_id)})).filter(r=>r.p && r.inv.quantity < r.p.reorder_point);
+    const invValue = inventory.reduce((sum,inv)=>{ const p=findProduct(inv.product_id); return sum+(p?inv.quantity*p.price:0); },0);
+
+    const periodLabel = period==='daily' ? 'ประจำวัน' : 'ประจำสัปดาห์';
+    const subject = `[StockGrid] รายงานสรุป${periodLabel} — ${now.toLocaleDateString('th-TH')}`;
+    const message =
+`สรุปข้อมูลคลังสินค้า${periodLabel}
+- รับสินค้าเข้ารวม: ${totalIn} หน่วย
+- จ่ายสินค้าออกรวม: ${totalOut} หน่วย
+- รับคืนสินค้ารวม: ${totalReturn} หน่วย
+- คำสั่งซื้อจัดส่งสำเร็จ: ${shippedCount} รายการ
+- คำสั่งซื้อรอดำเนินการ: ${pendingCount} รายการ
+- มูลค่าสินค้าคงคลังรวม: ${money(invValue)}
+- สินค้าต่ำกว่าจุดสั่งซื้อ: ${lowItems.length} รายการ${lowItems.length ? '\n  ' + lowItems.map(r=>`${r.p.name} (เหลือ ${r.inv.quantity})`).join('\n  ') : ''}`;
+
+    return sendEmail(subject, message, `สรุป${periodLabel}`);
+  }
+
+  document.getElementById('formEmailSetup').addEventListener('submit', function(e){
+    e.preventDefault();
+    const msg = document.getElementById('msgEmailSetup');
+    const publicKey = document.getElementById('ejPublicKey').value.trim();
+    const serviceId = document.getElementById('ejServiceId').value.trim();
+    const templateId = document.getElementById('ejTemplateId').value.trim();
+    const toEmail = document.getElementById('ejToEmail').value.trim();
+
+    if(!toEmail){ showMsg(msg, 'กรุณาระบุอีเมลผู้ดูแลคลังสินค้า', false); return; }
+    if(!publicKey || !serviceId || !templateId){
+      emailConfig = { publicKey, serviceId, templateId, toEmail, ready:false };
+      showMsg(msg, 'บันทึกอีเมลผู้รับแล้ว แต่ยังไม่ครบค่า EmailJS (Public/Service/Template) จึงยังส่งอีเมลจริงไม่ได้', false);
+      saveState();
+      return;
+    }
+    emailConfig = { publicKey, serviceId, templateId, toEmail, ready:true };
+    if(typeof emailjs !== 'undefined'){ try{ emailjs.init(publicKey); }catch(err){ console.error(err); } }
+    showMsg(msg, 'บันทึกการตั้งค่า EmailJS เรียบร้อยแล้ว พร้อมส่งอีเมลจริง', true);
+    saveState();
+  });
+
+  document.getElementById('btnTestEmail').addEventListener('click', function(){
+    const msg = document.getElementById('msgEmailSetup');
+    if(!emailConfig.toEmail){ showMsg(msg, 'กรุณาบันทึกการตั้งค่าและระบุอีเมลผู้รับก่อน', false); return; }
+    sendEmail('[StockGrid] ทดสอบการแจ้งเตือน', 'นี่คืออีเมลทดสอบจากระบบ StockGrid Mini-WMS', 'ทดสอบ')
+      .then(ok=> showMsg(msg, ok ? 'ส่งอีเมลทดสอบสำเร็จ ตรวจสอบกล่องจดหมายได้เลย' : 'ส่งไม่สำเร็จ กรุณาตรวจสอบค่า EmailJS อีกครั้ง', ok));
+  });
+
+  document.getElementById('autoAlertToggle').addEventListener('change', function(){
+    autoAlertEnabled = this.checked;
+    const msg = document.getElementById('msgAutoAlert');
+    showMsg(msg, autoAlertEnabled ? 'เปิดการแจ้งเตือนอัตโนมัติแล้ว' : 'ปิดการแจ้งเตือนอัตโนมัติแล้ว', true);
+    saveState();
+    if(autoAlertEnabled) checkLowStockAndNotify();
+  });
+
+  document.getElementById('btnSendDaily').addEventListener('click', function(){
+    sendSummaryReport('daily');
+  });
+  document.getElementById('btnSendWeekly').addEventListener('click', function(){
+    sendSummaryReport('weekly');
+  });
+
+  /* ---------------- Print documents ---------------- */
+  function printReceivingDoc(txId){
+    const t = transactions.find(x=>x.id===txId);
+    if(!t) return;
+    const p = findProduct(t.product_id);
+    const area = document.getElementById('printArea');
+    area.innerHTML = `
+      <div class="doc-header">
+        <div><h2 style="margin:0;">ใบรับสินค้าเข้าคลัง</h2><div>SmartStock Logistics Co., Ltd.</div></div>
+        <div style="text-align:right;">
+          <div>เอกสารอ้างอิง: ${escapeHtml(t.ref_document||'-')}</div>
+          <div>เวลา: ${t.time}</div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>SKU</th><th>ชื่อสินค้า</th><th>จำนวนที่รับ</th><th>หน่วยนับ</th><th>ตำแหน่งจัดเก็บ</th></tr></thead>
+        <tbody>
+          <tr><td>${escapeHtml(p?p.sku:'-')}</td><td>${escapeHtml(p?p.name:'-')}</td><td>${t.quantity}</td><td>${escapeHtml(p?p.unit:'-')}</td><td>${escapeHtml(t.location_code||'-')}</td></tr>
+        </tbody>
+      </table>
+      <div class="doc-sign">
+        <div>ผู้ส่งมอบสินค้า</div>
+        <div>ผู้รับสินค้าเข้าคลัง</div>
+      </div>`;
+    window.print();
+  }
+
+  function printOrderDoc(orderId){
+    const o = orders.find(x=>x.id===orderId);
+    if(!o) return;
+    const cust = o.customer_id ? findCustomer(o.customer_id) : null;
+    const area = document.getElementById('printArea');
+    const rows = o.items.map(it=>{
+      const p = findProduct(it.product_id);
+      const lineTotal = p ? p.price*it.quantity : 0;
+      return `<tr><td>${escapeHtml(p?p.sku:'-')}</td><td>${escapeHtml(p?p.name:'-')}</td><td>${it.quantity}</td><td>${money(p?p.price:0)}</td><td>${money(lineTotal)}</td></tr>`;
+    }).join('');
+    area.innerHTML = `
+      <div class="doc-header">
+        <div><h2 style="margin:0;">ใบสั่งซื้อ / ใบส่งของ</h2><div>SmartStock Logistics Co., Ltd.</div></div>
+        <div style="text-align:right;">
+          <div>เลขที่คำสั่งซื้อ: ${escapeHtml(o.order_no)}</div>
+          <div>สถานะ: ${escapeHtml(o.status)}</div>
+          <div>วันที่สร้าง: ${escapeHtml(o.created||'-')}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <strong>ลูกค้า/ตัวแทนจำหน่าย:</strong> ${escapeHtml(cust ? cust.name : 'ไม่ระบุ')}
+        ${cust && cust.address ? `<br><strong>ที่อยู่จัดส่ง:</strong> ${escapeHtml(cust.address)}` : ''}
+        ${cust && cust.phone ? `<br><strong>เบอร์โทร:</strong> ${escapeHtml(cust.phone)}` : ''}
+      </div>
+      <table>
+        <thead><tr><th>SKU</th><th>ชื่อสินค้า</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>รวม</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="text-align:right; margin-top:10px; font-weight:bold;">มูลค่ารวมทั้งสิ้น: ${money(orderValue(o))}</div>
+      <div class="doc-sign">
+        <div>ผู้จัดเตรียมสินค้า</div>
+        <div>ผู้จัดส่ง / ลูกค้ารับสินค้า</div>
+      </div>`;
+    window.print();
+  }
+
+  /* ---------------- CSV export ---------------- */
+  function csvEscape(val){
+    const s = String(val==null ? '' : val);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+  function downloadCSV(filename, headers, rows){
+    const lines = [headers.map(csvEscape).join(',')].concat(rows.map(r=>r.map(csvEscape).join(',')));
+    const csvContent = '\uFEFF' + lines.join('\r\n'); // ใส่ BOM ให้ Excel เปิดภาษาไทยได้ถูกต้อง
+    const blob = new Blob([csvContent], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('btnExportInventory').addEventListener('click', function(){
+    const headers = ['SKU','ชื่อสินค้า','หมวดหมู่','ตำแหน่ง','คงเหลือ','หน่วยนับ','ราคา/หน่วย','มูลค่ารวม','ซัพพลายเออร์'];
+    const rows = inventory.map(inv=>{
+      const p = findProduct(inv.product_id);
+      const loc = findLocation(inv.location_id);
+      if(!p) return null;
+      return [p.sku, p.name, p.category||'', loc?loc.code:'', inv.quantity, p.unit, p.price||0, (inv.quantity*(p.price||0)).toFixed(2), p.supplier||''];
+    }).filter(Boolean);
+    downloadCSV('stockgrid-inventory.csv', headers, rows);
+  });
+
+  document.getElementById('btnExportOrders').addEventListener('click', function(){
+    const headers = ['เลขที่คำสั่งซื้อ','ลูกค้า','รายการสินค้า','มูลค่ารวม','สถานะ','วันที่สร้าง'];
+    const rows = orders.map(o=>{
+      const itemsLabel = o.items.map(it=>{ const p=findProduct(it.product_id); return `${p?p.sku:'?'} x${it.quantity}`; }).join('; ');
+      const cust = o.customer_id ? findCustomer(o.customer_id) : null;
+      return [o.order_no, cust?cust.name:'', itemsLabel, orderValue(o).toFixed(2), o.status, o.created||''];
+    });
+    downloadCSV('stockgrid-orders.csv', headers, rows);
+  });
+
+  /* ---------------- Seed demo data ---------------- */
+  function seed(){
+    const demo = [
+      { sku:'SKU-1001', name:'กล่องกระดาษ A4', unit:'กล่อง', reorder_point:20, category:'บรรจุภัณฑ์', supplier:'บจก. ไทยแพ็คเกจจิ้ง', price:25, qty:15, doc:'RCV-0001' },
+      { sku:'SKU-1002', name:'พาเลทไม้มาตรฐาน', unit:'แผ่น', reorder_point:10, category:'อุปกรณ์คลังสินค้า', supplier:'บจก. วู้ดแพ็ค', price:180, qty:40, doc:'RCV-0002' },
+      { sku:'SKU-1003', name:'ฟิล์มยืดพันพาเลท', unit:'ม้วน', reorder_point:15, category:'วัสดุสิ้นเปลือง', supplier:'บจก. แพ็คโปร', price:95, qty:8, doc:'RCV-0003' },
+      { sku:'SKU-1004', name:'เครื่องสแกนบาร์โค้ด', unit:'เครื่อง', reorder_point:3, category:'อิเล็กทรอนิกส์', supplier:'บจก. เทคสแกน', price:2500, qty:6, doc:'RCV-0004' },
+    ];
+    demo.forEach(d=>{
+      const p = { id: nextProductId++, sku:d.sku, name:d.name, unit:d.unit, reorder_point:d.reorder_point, category:d.category, supplier:d.supplier, price:d.price, image_url:'' };
+      products.push(p);
+      const result = addStock(p.id, d.qty);
+      transactions.push({ id: nextTxId++, product_id:p.id, type:'รับเข้า', quantity:d.qty, ref_document:d.doc, location_code: result.location.code, time: nowLabel() });
+    });
+    // ตัวอย่างคำสั่งซื้อ
+    orders.push({ id: nextOrderId++, order_no:'SO-0001', status:'รอดำเนินการ', items:[{product_id:1, quantity:3},{product_id:3, quantity:2}], created: nowLabel() });
+  }
+
+  /* ---------------- Persistence (localStorage) ---------------- */
+  const STORAGE_KEY = 'stockgrid_wms_data_v1';
+
+  function saveState(){
+    try{
+      const payload = {
+        locations, products, inventory, transactions, orders, suppliers, customers,
+        assets, maintRecords, employees, scheduleAssignments,
+        nextProductId, nextTxId, nextOrderId, nextSupplierId, nextCustomerId,
+        nextAssetId, nextMaintId, nextEmployeeId, nextScheduleId,
+        emailConfig, autoAlertEnabled,
+        alreadyNotifiedLowStock: [...alreadyNotifiedLowStock],
+        alertLog
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }catch(err){
+      console.error('บันทึกข้อมูลลง localStorage ไม่สำเร็จ:', err);
+    }
+  }
+
+  // โหลดข้อมูลเดิมจาก localStorage คืนค่า true ถ้าโหลดสำเร็จและมีข้อมูลอยู่จริง
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return false;
+      const data = JSON.parse(raw);
+      if(!data || !Array.isArray(data.products)) return false;
+
+      locations = data.locations || locations;
+      products = data.products || [];
+      inventory = data.inventory || [];
+      transactions = data.transactions || [];
+      orders = data.orders || [];
+      suppliers = data.suppliers || [];
+      customers = data.customers || [];
+      assets = data.assets || [];
+      maintRecords = data.maintRecords || [];
+      employees = data.employees || [];
+      scheduleAssignments = data.scheduleAssignments || [];
+      nextProductId = data.nextProductId || 1;
+      nextTxId = data.nextTxId || 1;
+      nextOrderId = data.nextOrderId || 1;
+      nextSupplierId = data.nextSupplierId || 1;
+      nextCustomerId = data.nextCustomerId || 1;
+      nextAssetId = data.nextAssetId || 1;
+      nextMaintId = data.nextMaintId || 1;
+      nextEmployeeId = data.nextEmployeeId || 1;
+      nextScheduleId = data.nextScheduleId || 1;
+      emailConfig = data.emailConfig || emailConfig;
+      autoAlertEnabled = !!data.autoAlertEnabled;
+      alreadyNotifiedLowStock = new Set(data.alreadyNotifiedLowStock || []);
+      alertLog = data.alertLog || [];
+      return true;
+    }catch(err){
+      console.error('โหลดข้อมูลจาก localStorage ไม่สำเร็จ:', err);
+      return false;
+    }
+  }
+
+  function applyLoadedEmailConfigToForm(){
+    if(emailConfig.publicKey) document.getElementById('ejPublicKey').value = emailConfig.publicKey;
+    if(emailConfig.serviceId) document.getElementById('ejServiceId').value = emailConfig.serviceId;
+    if(emailConfig.templateId) document.getElementById('ejTemplateId').value = emailConfig.templateId;
+    if(emailConfig.toEmail) document.getElementById('ejToEmail').value = emailConfig.toEmail;
+    document.getElementById('autoAlertToggle').checked = autoAlertEnabled;
+    if(emailConfig.ready && typeof emailjs !== 'undefined'){
+      try{ emailjs.init(emailConfig.publicKey); }catch(err){ console.error(err); }
+    }
+  }
+
+  document.getElementById('btnResetData').addEventListener('click', function(){
+    const sure = confirm('ต้องการล้างข้อมูลทั้งหมดและเริ่มต้นใหม่ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้');
+    if(!sure) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  /* ---------------- Init ---------------- */
+  const hadSavedData = loadState();
+  if(!hadSavedData){
+    seed();
+  }
+  renderAllProductSelects();
+  renderSupplierSelect();
+  renderCustomerSelect();
+  renderAssetSelect();
+  renderEmployeeSelect();
+  addOrderItemRow();
+  renderReceivingLog();
+  renderReturnsLog();
+  renderRack();
+  renderDashboard();
+  renderInventoryTable();
+  renderOrdersTable();
+  renderAlertLog();
+  applyLoadedEmailConfigToForm();
+  saveState();
+
+  if(restoreSession()){
+    showApp();
+    goTo('dashboard');
+  }
+  // ถ้ายังไม่เคยล็อกอิน (หรือกด logout ไปแล้ว) หน้าจอ login จะแสดงค้างอยู่ตามค่าเริ่มต้น
+
+})();
+</script>
+</body>
+</html>
