@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StockGrid — ห้องควบคุมคลังสินค้า</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
@@ -24,9 +24,9 @@
     --text-dim:#6B7F96;
     --danger:#E5636B;
     --radius:10px;
-    --mono:'JetBrains Mono', monospace;
-    --display:'Space Grotesk', sans-serif;
-    --body:'Inter', sans-serif;
+    --mono:'Prompt', sans-serif;
+    --display:'Prompt', sans-serif;
+    --body:'Prompt', sans-serif;
   }
   *{box-sizing:border-box;}
   body{
@@ -219,8 +219,8 @@
 
 <div id="loginOverlay" style="position:fixed; inset:0; z-index:999; background:radial-gradient(circle at 15% 0%, #12314f 0%, transparent 45%), radial-gradient(circle at 100% 100%, #0f2438 0%, transparent 50%), #0A1728; display:flex; align-items:center; justify-content:center; padding:20px;">
   <div style="width:100%; max-width:380px; background:linear-gradient(180deg, #16324F, #122A45); border:1px solid #24405E; border-radius:12px; padding:32px;">
-    <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px; color:#EAF2FA; margin-bottom:4px;">Stock<span style="color:#3FA9F5;">Grid</span></div>
-    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#6B7F96; letter-spacing:.5px; text-transform:uppercase; margin-bottom:24px;">เข้าสู่ระบบห้องควบคุมคลังสินค้า</div>
+    <div style="font-family:'Prompt',sans-serif; font-weight:700; font-size:22px; color:#EAF2FA; margin-bottom:4px;">Stock<span style="color:#3FA9F5;">Grid</span></div>
+    <div style="font-family:'Prompt',sans-serif; font-size:11px; color:#6B7F96; letter-spacing:.5px; text-transform:uppercase; margin-bottom:24px;">เข้าสู่ระบบห้องควบคุมคลังสินค้า</div>
     <div class="msg" id="msgLogin" style="font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:14px; display:none;"></div>
     <form id="formLogin">
       <label style="display:block; font-size:12px; color:#9FB3C8; margin:0 0 6px;">ชื่อผู้ใช้งาน</label>
@@ -229,7 +229,7 @@
       <input id="loginPass" type="password" style="width:100%; background:#0C2036; border:1px solid #24405E; color:#EAF2FA; padding:10px 12px; border-radius:8px; font-size:14px; margin-bottom:18px; box-sizing:border-box;" required>
       <button class="btn" type="submit" style="width:100%; justify-content:center;">เข้าสู่ระบบ →</button>
     </form>
-    <div style="margin-top:18px; font-size:11px; color:#6B7F96; line-height:1.7; font-family:'JetBrains Mono',monospace;">
+    <div style="margin-top:18px; font-size:11px; color:#6B7F96; line-height:1.7; font-family:'Prompt',sans-serif;">
       บัญชีทดลองใช้:<br>
       ผู้ดูแล: admin / admin123<br>
       พนักงาน: staff / staff123
